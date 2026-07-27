@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/openaura/openaura/internal/role"
 	"github.com/openaura/openaura/internal/roleassignments"
 	"github.com/openaura/openaura/internal/tenant"
+	"github.com/openaura/openaura/internal/testutil"
 	"github.com/openaura/openaura/internal/user"
 )
 
@@ -57,15 +59,17 @@ func TestAPIVersionRequired(t *testing.T) {
 func TestUsersAPI_CRUDPaginationAndErrors(t *testing.T) {
 	api := apitest.New(t)
 
+	localPart := testutil.Unique()
+	updatedEmail := testutil.Email("lovelace")
 	var created user.User
 	status := api.JSON(http.MethodPost, "/users", map[string]any{
-		"email":    " Ada@Example.COM ",
+		"email":    " " + strings.ToUpper(localPart) + "@Example.COM ",
 		"metadata": map[string]any{"name": "Ada"},
 	}, &created)
 	if status != http.StatusCreated {
 		t.Fatalf("create status = %d", status)
 	}
-	if created.Email != "ada@example.com" || created.ID == uuid.Nil {
+	if created.Email != localPart+"@example.com" || created.ID == uuid.Nil {
 		t.Fatalf("unexpected user: %+v", created)
 	}
 
@@ -77,10 +81,10 @@ func TestUsersAPI_CRUDPaginationAndErrors(t *testing.T) {
 
 	var updated user.User
 	status = api.JSON(http.MethodPatch, "/users/"+created.ID.String(), map[string]any{
-		"email":    "lovelace@example.com",
+		"email":    updatedEmail,
 		"metadata": map[string]any{"title": "Countess"},
 	}, &updated)
-	if status != http.StatusOK || updated.Email != "lovelace@example.com" {
+	if status != http.StatusOK || updated.Email != updatedEmail {
 		t.Fatalf("update status=%d user=%+v", status, updated)
 	}
 
@@ -126,7 +130,7 @@ func TestUsersAPI_CRUDPaginationAndErrors(t *testing.T) {
 	}
 
 	status = api.JSON(http.MethodPost, "/users", map[string]any{
-		"email": "lovelace@example.com",
+		"email": updatedEmail,
 	}, nil)
 	if status != http.StatusConflict {
 		t.Fatalf("duplicate status = %d", status)
@@ -383,10 +387,10 @@ func TestRoleAssignmentsAPI_CRUDFiltersAndErrors(t *testing.T) {
 	}
 }
 
-func createUser(t *testing.T, api *apitest.API, email string) user.User {
+func createUser(t *testing.T, api *apitest.API, _ string) user.User {
 	t.Helper()
 	var u user.User
-	status := api.JSON(http.MethodPost, "/users", map[string]any{"email": email}, &u)
+	status := api.JSON(http.MethodPost, "/users", map[string]any{"email": testutil.Email("user")}, &u)
 	if status != http.StatusCreated {
 		t.Fatalf("create user: %d", status)
 	}
@@ -461,16 +465,19 @@ func TestAdminAppsAPI_CRUDAndPagination(t *testing.T) {
 	}
 
 	var deletedID uuid.UUID
+	activeIDs := map[uuid.UUID]struct{}{api.AppID: {}, created.ID: {}}
 	for i := 0; i < 4; i++ {
 		var a app.App
 		status = api.AdminJSON(http.MethodPost, "/admin/apps", map[string]any{
-			"name": fmt.Sprintf("extra-%d-%s", i, uuid.NewString()[:8]),
+			"name": testutil.Name(fmt.Sprintf("extra-%d", i)),
 		}, &a)
 		if status != http.StatusCreated {
 			t.Fatalf("seed %d: %d", i, status)
 		}
 		if i == 1 {
 			deletedID = a.ID
+		} else {
+			activeIDs[a.ID] = struct{}{}
 		}
 		time.Sleep(2 * time.Millisecond)
 	}
@@ -484,10 +491,18 @@ func TestAdminAppsAPI_CRUDAndPagination(t *testing.T) {
 		t.Fatalf("page status=%d len=%d", status, len(page.Apps))
 	}
 
-	// New() already created one app; plus created + 3 remaining extras = 5
 	status = api.AdminJSON(http.MethodGet, "/admin/apps?limit=50", nil, &page)
-	if status != http.StatusOK || len(page.Apps) != 5 {
-		t.Fatalf("list status=%d len=%d want 5", status, len(page.Apps))
+	if status != http.StatusOK {
+		t.Fatalf("list status=%d", status)
+	}
+	for _, item := range page.Apps {
+		delete(activeIDs, item.ID)
+		if item.ID == deletedID {
+			t.Fatal("soft-deleted app appeared in list")
+		}
+	}
+	if len(activeIDs) != 0 {
+		t.Fatalf("created apps missing from list: %v", activeIDs)
 	}
 
 	status = api.JSON(http.MethodGet, "/admin/apps", nil, nil)
@@ -583,18 +598,19 @@ func TestAppAPIKeysAPI_CRUDAndIsolation(t *testing.T) {
 func TestUsersAPI_EmailUniquePerApp(t *testing.T) {
 	api := apitest.New(t)
 
-	status := api.JSON(http.MethodPost, "/users", map[string]any{"email": "shared@example.com"}, nil)
+	email := testutil.Email("shared")
+	status := api.JSON(http.MethodPost, "/users", map[string]any{"email": email}, nil)
 	if status != http.StatusCreated {
 		t.Fatalf("create user app1: %d", status)
 	}
-	status = api.JSON(http.MethodPost, "/users", map[string]any{"email": "shared@example.com"}, nil)
+	status = api.JSON(http.MethodPost, "/users", map[string]any{"email": email}, nil)
 	if status != http.StatusConflict {
 		t.Fatalf("dup in same app: %d", status)
 	}
 
 	// Second app can reuse the email.
 	var other app.App
-	status = api.AdminJSON(http.MethodPost, "/admin/apps", map[string]any{"name": "other-app"}, &other)
+	status = api.AdminJSON(http.MethodPost, "/admin/apps", map[string]any{"name": testutil.Name("other-app")}, &other)
 	if status != http.StatusCreated {
 		t.Fatalf("create other app: %d", status)
 	}
@@ -604,7 +620,7 @@ func TestUsersAPI_EmailUniquePerApp(t *testing.T) {
 		t.Fatalf("create other key: %d", status)
 	}
 
-	resp := api.Do(http.MethodPost, "/users", "1", otherKey.Key, map[string]any{"email": "shared@example.com"})
+	resp := api.Do(http.MethodPost, "/users", "1", otherKey.Key, map[string]any{"email": email})
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("same email other app status=%d", resp.StatusCode)

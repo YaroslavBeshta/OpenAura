@@ -159,7 +159,7 @@ func TestSecurity_CrossAppIDOR(t *testing.T) {
 	// Victim objects must remain intact.
 	var still user.User
 	status = api.JSON(http.MethodGet, "/users/"+u.ID.String(), nil, &still)
-	if status != http.StatusOK || still.Email != "owner@example.com" {
+	if status != http.StatusOK || still.Email != u.Email {
 		t.Fatalf("victim user mutated: status=%d email=%q", status, still.Email)
 	}
 }

@@ -20,7 +20,7 @@ func SeedApp(t *testing.T, pool *pgxpool.Pool) uuid.UUID {
 	_, err = pool.Exec(context.Background(), `
 		INSERT INTO apps (id, name, metadata)
 		VALUES ($1, $2, '{}'::jsonb)
-	`, id, "test-app")
+	`, id, Name("test-app"))
 	if err != nil {
 		t.Fatalf("seed app: %v", err)
 	}

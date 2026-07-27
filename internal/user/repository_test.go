@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,13 +16,13 @@ import (
 
 func TestRepository_CreateGetUpdateDelete(t *testing.T) {
 	pool := testutil.Pool(t)
-	testutil.Reset(t, pool)
 	appID := testutil.SeedApp(t, pool)
 	repo := NewRepository(pool)
 	ctx := context.Background()
 
+	localPart := testutil.Unique()
 	created, err := repo.Create(ctx, appID, CreateInput{
-		Email:    " Ada@Example.COM ",
+		Email:    " " + strings.ToUpper(localPart) + "@Example.COM ",
 		Metadata: json.RawMessage(`{"name":"Ada"}`),
 	})
 	if err != nil {
@@ -30,7 +31,7 @@ func TestRepository_CreateGetUpdateDelete(t *testing.T) {
 	if created.ID == uuid.Nil {
 		t.Fatal("expected uuid v7 id")
 	}
-	if created.Email != "ada@example.com" {
+	if created.Email != localPart+"@example.com" {
 		t.Fatalf("email = %q, want normalized lowercase", created.Email)
 	}
 	if created.DeletedAt != nil {
@@ -46,7 +47,7 @@ func TestRepository_CreateGetUpdateDelete(t *testing.T) {
 		t.Fatalf("get mismatch: %+v", got)
 	}
 
-	email := "lovelace@example.com"
+	email := testutil.Email("lovelace")
 	meta := json.RawMessage(`{"title":"Countess"}`)
 	updated, err := repo.Update(ctx, appID, created.ID, UpdateInput{
 		Email:    &email,
@@ -79,23 +80,23 @@ func TestRepository_CreateGetUpdateDelete(t *testing.T) {
 
 func TestRepository_CreateConflictAndReuseAfterDelete(t *testing.T) {
 	pool := testutil.Pool(t)
-	testutil.Reset(t, pool)
 	appID := testutil.SeedApp(t, pool)
 	repo := NewRepository(pool)
 	ctx := context.Background()
 
-	first, err := repo.Create(ctx, appID, CreateInput{Email: "dup@example.com"})
+	email := testutil.Email("dup")
+	first, err := repo.Create(ctx, appID, CreateInput{Email: email})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if _, err := repo.Create(ctx, appID, CreateInput{Email: "dup@example.com"}); !errors.Is(err, store.ErrConflict) {
+	if _, err := repo.Create(ctx, appID, CreateInput{Email: email}); !errors.Is(err, store.ErrConflict) {
 		t.Fatalf("duplicate create: %v, want ErrConflict", err)
 	}
 
 	if err := repo.SoftDelete(ctx, appID, first.ID); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
-	second, err := repo.Create(ctx, appID, CreateInput{Email: "dup@example.com"})
+	second, err := repo.Create(ctx, appID, CreateInput{Email: email})
 	if err != nil {
 		t.Fatalf("create after soft delete: %v", err)
 	}
@@ -106,7 +107,6 @@ func TestRepository_CreateConflictAndReuseAfterDelete(t *testing.T) {
 
 func TestRepository_ListPaginationAndSoftDeleteVisibility(t *testing.T) {
 	pool := testutil.Pool(t)
-	testutil.Reset(t, pool)
 	appID := testutil.SeedApp(t, pool)
 	repo := NewRepository(pool)
 	ctx := context.Background()
@@ -162,7 +162,6 @@ func TestRepository_ListPaginationAndSoftDeleteVisibility(t *testing.T) {
 
 func TestRepository_InvalidInput(t *testing.T) {
 	pool := testutil.Pool(t)
-	testutil.Reset(t, pool)
 	appID := testutil.SeedApp(t, pool)
 	repo := NewRepository(pool)
 	ctx := context.Background()
@@ -180,7 +179,7 @@ func TestRepository_InvalidInput(t *testing.T) {
 
 func TestClampPagination(t *testing.T) {
 	tests := []struct {
-		limit, offset     int
+		limit, offset      int
 		wantLimit, wantOff int
 	}{
 		{0, 0, 50, 0},

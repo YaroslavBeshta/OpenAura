@@ -16,14 +16,24 @@ const (
 
 // Pool returns a Postgres pool for integration tests.
 // Requires DATABASE_URL (typically from .env via `make test`).
-// Skips the test when the database is unreachable.
+// Skips the test when the database is unreachable, unless OPENAURA_REQUIRE_DB
+// is set (e.g. by `make test-cover` / CI), in which case it fails instead.
 // Takes a Postgres advisory lock so packages tested in parallel do not race.
 func Pool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 
+	requireDB := os.Getenv("OPENAURA_REQUIRE_DB") != ""
+	abort := func(format string, args ...any) {
+		t.Helper()
+		if requireDB {
+			t.Fatalf(format, args...)
+		}
+		t.Skipf(format, args...)
+	}
+
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
-		t.Skip("DATABASE_URL is not set (copy .env.example to .env)")
+		abort("DATABASE_URL is not set (copy .env.example to .env)")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -31,11 +41,11 @@ func Pool(t *testing.T) *pgxpool.Pool {
 
 	pool, err := pgxpool.New(ctx, databaseURL)
 	if err != nil {
-		t.Skipf("postgres unavailable: %v", err)
+		abort("postgres unavailable: %v", err)
 	}
 	if err := pool.Ping(ctx); err != nil {
 		pool.Close()
-		t.Skipf("postgres unavailable: %v", err)
+		abort("postgres unavailable: %v", err)
 	}
 
 	conn, err := pool.Acquire(ctx)
@@ -58,29 +68,4 @@ func Pool(t *testing.T) *pgxpool.Pool {
 	})
 
 	return pool
-}
-
-// Reset truncates all application tables so each test starts clean.
-func Reset(t *testing.T, pool *pgxpool.Pool) {
-	t.Helper()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	_, err := pool.Exec(ctx, `
-		TRUNCATE TABLE
-			permissions,
-			roleassignments,
-			api_keys,
-			admin_api_keys,
-			users,
-			roles,
-			tenants,
-			resources,
-			actions,
-			apps
-		RESTART IDENTITY CASCADE`)
-	if err != nil {
-		t.Fatalf("truncate tables: %v", err)
-	}
 }

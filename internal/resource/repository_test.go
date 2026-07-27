@@ -40,7 +40,6 @@ func countActiveResources(t *testing.T, pool *pgxpool.Pool, appID uuid.UUID) int
 
 func TestRepository_CreateGetUpdateDelete(t *testing.T) {
 	pool := testutil.Pool(t)
-	testutil.Reset(t, pool)
 	appID := createApp(t, pool)
 	repo := NewRepository(pool)
 	ctx := context.Background()
@@ -105,7 +104,6 @@ func TestRepository_CreateGetUpdateDelete(t *testing.T) {
 
 func TestRepository_UniqueNameAndPagination(t *testing.T) {
 	pool := testutil.Pool(t)
-	testutil.Reset(t, pool)
 	appID := createApp(t, pool)
 	otherApp := createApp(t, pool)
 	repo := NewRepository(pool)
@@ -169,7 +167,6 @@ func TestRepository_UniqueNameAndPagination(t *testing.T) {
 
 func TestRepository_InvalidInput(t *testing.T) {
 	pool := testutil.Pool(t)
-	testutil.Reset(t, pool)
 	appID := createApp(t, pool)
 	repo := NewRepository(pool)
 	ctx := context.Background()

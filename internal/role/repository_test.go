@@ -15,7 +15,6 @@ import (
 
 func TestRepository_CreateGetUpdateDelete(t *testing.T) {
 	pool := testutil.Pool(t)
-	testutil.Reset(t, pool)
 	appID := testutil.SeedApp(t, pool)
 	repo := NewRepository(pool)
 	ctx := context.Background()
@@ -55,7 +54,6 @@ func TestRepository_CreateGetUpdateDelete(t *testing.T) {
 
 func TestRepository_ListPagination(t *testing.T) {
 	pool := testutil.Pool(t)
-	testutil.Reset(t, pool)
 	appID := testutil.SeedApp(t, pool)
 	repo := NewRepository(pool)
 	ctx := context.Background()
@@ -96,7 +94,6 @@ func TestRepository_ListPagination(t *testing.T) {
 
 func TestRepository_InvalidUpdate(t *testing.T) {
 	pool := testutil.Pool(t)
-	testutil.Reset(t, pool)
 	appID := testutil.SeedApp(t, pool)
 	repo := NewRepository(pool)
 	ctx := context.Background()
