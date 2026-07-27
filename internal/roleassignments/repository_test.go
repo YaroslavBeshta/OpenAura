@@ -26,7 +26,6 @@ type fixtures struct {
 func newFixtures(t *testing.T) (*fixtures, context.Context, uuid.UUID) {
 	t.Helper()
 	pool := testutil.Pool(t)
-	testutil.Reset(t, pool)
 	appID := testutil.SeedApp(t, pool)
 	return &fixtures{
 		users:   user.NewRepository(pool),
@@ -36,9 +35,9 @@ func newFixtures(t *testing.T) (*fixtures, context.Context, uuid.UUID) {
 	}, context.Background(), appID
 }
 
-func (f *fixtures) seedUser(t *testing.T, ctx context.Context, appID uuid.UUID, email string) user.User {
+func (f *fixtures) seedUser(t *testing.T, ctx context.Context, appID uuid.UUID, _ string) user.User {
 	t.Helper()
-	u, err := f.users.Create(ctx, appID, user.CreateInput{Email: email})
+	u, err := f.users.Create(ctx, appID, user.CreateInput{Email: testutil.Email("user")})
 	if err != nil {
 		t.Fatalf("create user: %v", err)
 	}
@@ -215,7 +214,7 @@ func TestRepository_ListFiltersAndPagination(t *testing.T) {
 	}
 
 	combined, err := f.assign.List(ctx, ListFilter{
-		AppID: appID,
+		AppID:    appID,
 		UserID:   &u2.ID,
 		RoleID:   &r1.ID,
 		TenantID: &t2.ID,

@@ -36,12 +36,11 @@ type API struct {
 	AppID    uuid.UUID
 }
 
-// New wires the full server against a clean database with bootstrap keys.
+// New wires the full server with isolated bootstrap keys and app fixtures.
 func New(t *testing.T) *API {
 	t.Helper()
 
 	pool := testutil.Pool(t)
-	testutil.Reset(t, pool)
 
 	appRepo := app.NewRepository(pool)
 	userRepo := user.NewRepository(pool)
@@ -55,8 +54,8 @@ func New(t *testing.T) *API {
 	apiKeyRepo := apikey.NewRepository(pool)
 	adminKeyRepo := adminapikey.NewRepository(pool)
 
-	adminKey := "oa_admin_test_bootstrap_key_0001"
-	if err := adminKeyRepo.EnsureBootstrapKey(context.Background(), adminKey, "test"); err != nil {
+	adminKey := "oa_admin_test_bootstrap_key_" + testutil.Unique()
+	if err := adminKeyRepo.EnsureBootstrapKey(context.Background(), adminKey, testutil.Name("test")); err != nil {
 		t.Fatalf("bootstrap admin key: %v", err)
 	}
 
@@ -84,7 +83,7 @@ func New(t *testing.T) *API {
 
 	var created app.App
 	status := api.adminJSON(http.MethodPost, "/admin/apps", map[string]any{
-		"name": "test-app",
+		"name": testutil.Name("test-app"),
 	}, &created)
 	if status != http.StatusCreated {
 		t.Fatalf("create app status=%d", status)
@@ -93,7 +92,7 @@ func New(t *testing.T) *API {
 
 	var key apikey.APIKey
 	status = api.adminJSON(http.MethodPost, "/admin/apps/"+created.ID.String()+"/api_keys", map[string]any{
-		"name": "test",
+		"name": testutil.Name("test-key"),
 	}, &key)
 	if status != http.StatusCreated || key.Key == "" {
 		t.Fatalf("create app key status=%d key=%q", status, key.Key)

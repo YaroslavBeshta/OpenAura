@@ -14,7 +14,6 @@ import (
 
 func TestRepository_CreateGetListRevokeResolve(t *testing.T) {
 	pool := testutil.Pool(t)
-	testutil.Reset(t, pool)
 	appID := testutil.SeedApp(t, pool)
 	otherApp := testutil.SeedApp(t, pool)
 	repo := NewRepository(pool)
@@ -85,7 +84,6 @@ func TestRepository_CreateGetListRevokeResolve(t *testing.T) {
 
 func TestRepository_CreateRequiresValidApp(t *testing.T) {
 	pool := testutil.Pool(t)
-	testutil.Reset(t, pool)
 	repo := NewRepository(pool)
 	ctx := context.Background()
 
@@ -96,7 +94,6 @@ func TestRepository_CreateRequiresValidApp(t *testing.T) {
 
 func TestRepository_ResolveRequiresActiveApp(t *testing.T) {
 	pool := testutil.Pool(t)
-	testutil.Reset(t, pool)
 	appID := testutil.SeedApp(t, pool)
 	repo := NewRepository(pool)
 	ctx := context.Background()

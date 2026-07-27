@@ -37,7 +37,6 @@ type fixtures struct {
 func newFixtures(t *testing.T) (*fixtures, context.Context, uuid.UUID) {
 	t.Helper()
 	pool := testutil.Pool(t)
-	testutil.Reset(t, pool)
 	f := &fixtures{
 		pool:      pool,
 		apps:      app.NewRepository(pool),

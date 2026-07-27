@@ -1,4 +1,4 @@
-.PHONY: run tidy test test-unit migrate migrate-info migrate-reapply generate-migration swagger
+.PHONY: run tidy test test-cover test-unit migrate migrate-info migrate-reapply generate-migration swagger
 
 ifneq (,$(wildcard .env))
 include .env
@@ -13,6 +13,15 @@ tidy:
 
 test:
 	go test ./... -count=1 -p 1
+
+# Packages included in coverage (exclude generated docs and test helpers).
+COVER_PKGS := $(shell go list ./internal/... | grep -vE '/(apitest|testutil)$$' | paste -sd, -)
+
+test-cover:
+	@test -n "$(DATABASE_URL)" || (echo 'DATABASE_URL is required (copy .env.example to .env and start Postgres)' >&2; exit 1)
+	OPENAURA_REQUIRE_DB=1 go test ./... -count=1 -p 1 -covermode=atomic -coverpkg=$(COVER_PKGS) -coverprofile=coverage.out
+	@go tool cover -func=coverage.out | tail -n 1
+	@echo "HTML report: go tool cover -html=coverage.out"
 
 test-unit:
 	go test ./internal/httpx ./internal/store -count=1

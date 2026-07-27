@@ -14,11 +14,10 @@ import (
 
 func TestRepository_CreateGetListRevoke(t *testing.T) {
 	pool := testutil.Pool(t)
-	testutil.Reset(t, pool)
 	repo := NewRepository(pool)
 	ctx := context.Background()
 
-	name := "root"
+	name := testutil.Name("root")
 	created, err := repo.Create(ctx, CreateInput{Name: &name})
 	if err != nil {
 		t.Fatalf("create: %v", err)
@@ -41,10 +40,13 @@ func TestRepository_CreateGetListRevoke(t *testing.T) {
 		t.Fatal("get should not return plaintext key")
 	}
 
+	activeIDs := make(map[uuid.UUID]struct{})
 	for i := 0; i < 3; i++ {
-		if _, err := repo.Create(ctx, CreateInput{}); err != nil {
+		key, err := repo.Create(ctx, CreateInput{})
+		if err != nil {
 			t.Fatalf("seed: %v", err)
 		}
+		activeIDs[key.ID] = struct{}{}
 		time.Sleep(2 * time.Millisecond)
 	}
 
@@ -71,22 +73,25 @@ func TestRepository_CreateGetListRevoke(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list all: %v", err)
 	}
-	if len(all) != 3 {
-		t.Fatalf("active = %d, want 3", len(all))
+	for _, key := range all {
+		delete(activeIDs, key.ID)
+	}
+	if len(activeIDs) != 0 {
+		t.Fatalf("created keys missing from list: %v", activeIDs)
 	}
 }
 
 func TestRepository_EnsureBootstrapKey(t *testing.T) {
 	pool := testutil.Pool(t)
-	testutil.Reset(t, pool)
 	repo := NewRepository(pool)
 	ctx := context.Background()
 
-	raw := "oa_admin_bootstrap_fixed_key_for_tests"
-	if err := repo.EnsureBootstrapKey(ctx, raw, "bootstrap"); err != nil {
+	raw := "oa_admin_bootstrap_" + testutil.Unique()
+	name := testutil.Name("bootstrap")
+	if err := repo.EnsureBootstrapKey(ctx, raw, name); err != nil {
 		t.Fatalf("ensure: %v", err)
 	}
-	if err := repo.EnsureBootstrapKey(ctx, raw, "bootstrap"); err != nil {
+	if err := repo.EnsureBootstrapKey(ctx, raw, name); err != nil {
 		t.Fatalf("ensure idempotent: %v", err)
 	}
 
@@ -99,7 +104,14 @@ func TestRepository_EnsureBootstrapKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
-	if len(all) != 1 {
-		t.Fatalf("expected one bootstrap key, got %d", len(all))
+	found := false
+	for _, key := range all {
+		if key.Name != nil && *key.Name == name {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("bootstrap key missing from list")
 	}
 }

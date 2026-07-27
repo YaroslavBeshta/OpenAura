@@ -4,6 +4,7 @@ dist/
 *.exe
 *.test
 *.out
+coverage.html
 .idea/
 .vscode/
 .DS_Store
