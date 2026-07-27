@@ -1,6 +1,7 @@
 package httpserver_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,10 +9,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/openaura/openaura/internal/access"
+	"github.com/openaura/openaura/internal/action"
 	"github.com/openaura/openaura/internal/adminapikey"
-	"github.com/openaura/openaura/internal/app"
 	"github.com/openaura/openaura/internal/apikey"
 	"github.com/openaura/openaura/internal/apitest"
+	"github.com/openaura/openaura/internal/app"
+	"github.com/openaura/openaura/internal/permission"
+	"github.com/openaura/openaura/internal/resource"
 	"github.com/openaura/openaura/internal/role"
 	"github.com/openaura/openaura/internal/roleassignments"
 	"github.com/openaura/openaura/internal/tenant"
@@ -603,5 +608,311 @@ func TestUsersAPI_EmailUniquePerApp(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("same email other app status=%d", resp.StatusCode)
+	}
+}
+
+func TestAppAPIKey_CannotAccessOtherAppEntities(t *testing.T) {
+	api := apitest.New(t)
+
+	user := createUser(t, api, "owner@example.com")
+	ten := createTenant(t, api, "tenant-a")
+	role := createRole(t, api, "role-a")
+
+	var assignment roleassignments.RoleAssignment
+	status := api.JSON(http.MethodPost, "/roleassignments", map[string]any{
+		"user_id": user.ID, "role_id": role.ID, "tenant_id": ten.ID,
+	}, &assignment)
+	if status != http.StatusCreated {
+		t.Fatalf("create assignment: %d", status)
+	}
+
+	var other app.App
+	status = api.AdminJSON(http.MethodPost, "/admin/apps", map[string]any{"name": "other"}, &other)
+	if status != http.StatusCreated {
+		t.Fatalf("create other app: %d", status)
+	}
+	var otherKey apikey.APIKey
+	status = api.AdminJSON(http.MethodPost, "/admin/apps/"+other.ID.String()+"/api_keys", map[string]any{}, &otherKey)
+	if status != http.StatusCreated {
+		t.Fatalf("create other key: %d", status)
+	}
+
+	// Reads from another app's key must not see these entities.
+	for _, path := range []string{
+		"/users/" + user.ID.String(),
+		"/tenants/" + ten.ID.String(),
+		"/roles/" + role.ID.String(),
+		"/roleassignments/" + assignment.ID.String(),
+	} {
+		resp := api.Do(http.MethodGet, path, "1", otherKey.Key, nil)
+		if resp.StatusCode != http.StatusNotFound {
+			resp.Body.Close()
+			t.Fatalf("%s status=%d want 404", path, resp.StatusCode)
+		}
+		resp.Body.Close()
+	}
+
+	// Writes using another app's entities must be rejected.
+	resp := api.Do(http.MethodPost, "/roleassignments", "1", otherKey.Key, map[string]any{
+		"user_id": user.ID, "role_id": role.ID, "tenant_id": ten.ID,
+	})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("cross-app assignment create status=%d", resp.StatusCode)
+	}
+
+	// Soft-deleted app keys cannot authenticate.
+	if status := api.AdminJSON(http.MethodDelete, "/admin/apps/"+other.ID.String(), nil, nil); status != http.StatusNoContent {
+		t.Fatalf("delete other app: %d", status)
+	}
+	resp2 := api.Do(http.MethodGet, "/users", "1", otherKey.Key, nil)
+	defer resp2.Body.Close()
+	if resp2.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("deleted app key status=%d", resp2.StatusCode)
+	}
+}
+
+func createResource(t *testing.T, api *apitest.API, name string) resource.Resource {
+	t.Helper()
+	var res resource.Resource
+	status := api.JSON(http.MethodPost, "/resources", map[string]any{"name": name}, &res)
+	if status != http.StatusCreated {
+		t.Fatalf("create resource: %d", status)
+	}
+	return res
+}
+
+func createAction(t *testing.T, api *apitest.API, name string) action.Action {
+	t.Helper()
+	var a action.Action
+	status := api.JSON(http.MethodPost, "/actions", map[string]any{"name": name}, &a)
+	if status != http.StatusCreated {
+		t.Fatalf("create action: %d", status)
+	}
+	return a
+}
+
+func TestResourcesAndActionsAPI_CRUD(t *testing.T) {
+	api := apitest.New(t)
+	ctx := context.Background()
+
+	var created resource.Resource
+	status := api.JSON(http.MethodPost, "/resources", map[string]any{
+		"name": "documents", "metadata": map[string]any{"kind": "file"},
+	}, &created)
+	if status != http.StatusCreated || created.Name != "documents" {
+		t.Fatalf("create resource status=%d %+v", status, created)
+	}
+
+	var dbName string
+	err := api.Pool.QueryRow(ctx, `
+		SELECT name FROM resources WHERE id = $1 AND app_id = $2 AND deleted_at IS NULL
+	`, created.ID, api.AppID).Scan(&dbName)
+	if err != nil || dbName != "documents" {
+		t.Fatalf("resource not persisted: %v name=%q", err, dbName)
+	}
+
+	var got resource.Resource
+	status = api.JSON(http.MethodGet, "/resources/"+created.ID.String(), nil, &got)
+	if status != http.StatusOK || got.ID != created.ID {
+		t.Fatalf("get resource status=%d", status)
+	}
+
+	var updated resource.Resource
+	status = api.JSON(http.MethodPatch, "/resources/"+created.ID.String(), map[string]any{
+		"name": "files",
+	}, &updated)
+	if status != http.StatusOK || updated.Name != "files" {
+		t.Fatalf("update resource status=%d %+v", status, updated)
+	}
+	err = api.Pool.QueryRow(ctx, `SELECT name FROM resources WHERE id = $1`, created.ID).Scan(&dbName)
+	if err != nil || dbName != "files" {
+		t.Fatalf("resource update not persisted: %v name=%q", err, dbName)
+	}
+
+	status = api.JSON(http.MethodPost, "/resources", map[string]any{"name": "files"}, nil)
+	if status != http.StatusConflict {
+		t.Fatalf("dup resource status=%d", status)
+	}
+
+	for i := 0; i < 3; i++ {
+		_ = createResource(t, api, fmt.Sprintf("extra-%d", i))
+	}
+	var resList resource.ListResponse
+	status = api.JSON(http.MethodGet, "/resources?limit=50", nil, &resList)
+	if status != http.StatusOK || len(resList.Resources) != 4 {
+		t.Fatalf("list resources status=%d len=%d", status, len(resList.Resources))
+	}
+
+	var act action.Action
+	status = api.JSON(http.MethodPost, "/actions", map[string]any{"name": "read"}, &act)
+	if status != http.StatusCreated || act.Name != "read" {
+		t.Fatalf("create action status=%d %+v", status, act)
+	}
+	var actionName string
+	err = api.Pool.QueryRow(ctx, `
+		SELECT name FROM actions WHERE id = $1 AND app_id = $2 AND deleted_at IS NULL
+	`, act.ID, api.AppID).Scan(&actionName)
+	if err != nil || actionName != "read" {
+		t.Fatalf("action not persisted: %v name=%q", err, actionName)
+	}
+
+	write := createAction(t, api, "write")
+	var actList action.ListResponse
+	status = api.JSON(http.MethodGet, "/actions?limit=50", nil, &actList)
+	if status != http.StatusOK || len(actList.Actions) != 2 {
+		t.Fatalf("list actions status=%d len=%d", status, len(actList.Actions))
+	}
+
+	status = api.JSON(http.MethodDelete, "/actions/"+act.ID.String(), nil, nil)
+	if status != http.StatusNoContent {
+		t.Fatalf("delete action status=%d", status)
+	}
+	status = api.JSON(http.MethodGet, "/actions/"+act.ID.String(), nil, nil)
+	if status != http.StatusNotFound {
+		t.Fatalf("get deleted action status=%d", status)
+	}
+	status = api.JSON(http.MethodGet, "/actions/"+write.ID.String(), nil, &act)
+	if status != http.StatusOK || act.ID != write.ID {
+		t.Fatalf("other action should remain status=%d", status)
+	}
+
+	if status := api.JSON(http.MethodDelete, "/resources/"+created.ID.String(), nil, nil); status != http.StatusNoContent {
+		t.Fatalf("delete resource status=%d", status)
+	}
+	status = api.JSON(http.MethodGet, "/resources/"+created.ID.String(), nil, nil)
+	if status != http.StatusNotFound {
+		t.Fatalf("get deleted resource status=%d", status)
+	}
+	var deletedAt *time.Time
+	err = api.Pool.QueryRow(ctx, `SELECT deleted_at FROM resources WHERE id = $1`, created.ID).Scan(&deletedAt)
+	if err != nil || deletedAt == nil {
+		t.Fatalf("resource soft-delete not in db: %v", err)
+	}
+}
+
+func TestPermissionsAndAccessCheckAPI(t *testing.T) {
+	api := apitest.New(t)
+	ctx := context.Background()
+
+	u := createUser(t, api, "ada@example.com")
+	ten := createTenant(t, api, "acme")
+	admin := createRole(t, api, "admin")
+	docs := createResource(t, api, "documents")
+	read := createAction(t, api, "read")
+	write := createAction(t, api, "write")
+
+	var perm permission.Permission
+	status := api.JSON(http.MethodPost, "/roles/"+admin.ID.String()+"/permissions", map[string]any{
+		"resource_id": docs.ID, "action_id": read.ID,
+	}, &perm)
+	if status != http.StatusCreated || perm.ID == uuid.Nil {
+		t.Fatalf("create permission status=%d", status)
+	}
+
+	var dbRole, dbRes, dbAct uuid.UUID
+	err := api.Pool.QueryRow(ctx, `
+		SELECT role_id, resource_id, action_id
+		FROM permissions
+		WHERE id = $1 AND deleted_at IS NULL
+	`, perm.ID).Scan(&dbRole, &dbRes, &dbAct)
+	if err != nil {
+		t.Fatalf("permission not persisted: %v", err)
+	}
+	if dbRole != admin.ID || dbRes != docs.ID || dbAct != read.ID {
+		t.Fatalf("permission db mismatch")
+	}
+
+	var got permission.Permission
+	status = api.JSON(http.MethodGet, "/roles/"+admin.ID.String()+"/permissions/"+perm.ID.String(), nil, &got)
+	if status != http.StatusOK || got.ID != perm.ID {
+		t.Fatalf("get permission status=%d", status)
+	}
+
+	status = api.JSON(http.MethodPost, "/roles/"+admin.ID.String()+"/permissions", map[string]any{
+		"resource_id": docs.ID, "action_id": write.ID,
+	}, nil)
+	if status != http.StatusCreated {
+		t.Fatalf("create write perm status=%d", status)
+	}
+
+	var list permission.ListResponse
+	status = api.JSON(http.MethodGet, "/roles/"+admin.ID.String()+"/permissions?limit=50", nil, &list)
+	if status != http.StatusOK || len(list.Permissions) != 2 {
+		t.Fatalf("list all status=%d len=%d", status, len(list.Permissions))
+	}
+	status = api.JSON(http.MethodGet, "/roles/"+admin.ID.String()+"/permissions?action_id="+read.ID.String(), nil, &list)
+	if status != http.StatusOK || len(list.Permissions) != 1 {
+		t.Fatalf("list filter status=%d len=%d", status, len(list.Permissions))
+	}
+
+	// Without assignment → deny.
+	var check access.CheckResponse
+	status = api.JSON(http.MethodPost, "/access/check", map[string]any{
+		"user_id": u.ID, "tenant_id": ten.ID, "resource": "documents", "action": "read",
+	}, &check)
+	if status != http.StatusOK || check.Allowed {
+		t.Fatalf("deny without assignment status=%d allowed=%v", status, check.Allowed)
+	}
+
+	var assignment roleassignments.RoleAssignment
+	status = api.JSON(http.MethodPost, "/roleassignments", map[string]any{
+		"user_id": u.ID, "role_id": admin.ID, "tenant_id": ten.ID,
+	}, &assignment)
+	if status != http.StatusCreated {
+		t.Fatalf("assign status=%d", status)
+	}
+	var asgCount int
+	err = api.Pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM roleassignments
+		WHERE id = $1 AND user_id = $2 AND role_id = $3 AND tenant_id = $4 AND deleted_at IS NULL
+	`, assignment.ID, u.ID, admin.ID, ten.ID).Scan(&asgCount)
+	if err != nil || asgCount != 1 {
+		t.Fatalf("assignment not persisted: %v count=%d", err, asgCount)
+	}
+
+	status = api.JSON(http.MethodPost, "/access/check", map[string]any{
+		"user_id": u.ID, "tenant_id": ten.ID, "resource": "documents", "action": "read",
+	}, &check)
+	if status != http.StatusOK || !check.Allowed {
+		t.Fatalf("allow status=%d allowed=%v", status, check.Allowed)
+	}
+
+	status = api.JSON(http.MethodPost, "/access/check", map[string]any{
+		"user_id": u.ID, "tenant_id": ten.ID, "resource": "documents", "action": "delete",
+	}, &check)
+	if status != http.StatusOK || check.Allowed {
+		t.Fatalf("deny unknown action status=%d allowed=%v", status, check.Allowed)
+	}
+
+	if status := api.JSON(http.MethodDelete, "/roles/"+admin.ID.String()+"/permissions/"+perm.ID.String(), nil, nil); status != http.StatusNoContent {
+		t.Fatalf("delete permission status=%d", status)
+	}
+	var permDeleted *time.Time
+	err = api.Pool.QueryRow(ctx, `SELECT deleted_at FROM permissions WHERE id = $1`, perm.ID).Scan(&permDeleted)
+	if err != nil || permDeleted == nil {
+		t.Fatalf("permission soft-delete not in db: %v", err)
+	}
+
+	status = api.JSON(http.MethodPost, "/access/check", map[string]any{
+		"user_id": u.ID, "tenant_id": ten.ID, "resource": "documents", "action": "read",
+	}, &check)
+	if status != http.StatusOK || check.Allowed {
+		t.Fatalf("deny after permission revoke status=%d allowed=%v", status, check.Allowed)
+	}
+
+	// write permission still grants write.
+	status = api.JSON(http.MethodPost, "/access/check", map[string]any{
+		"user_id": u.ID, "tenant_id": ten.ID, "resource": "documents", "action": "write",
+	}, &check)
+	if status != http.StatusOK || !check.Allowed {
+		t.Fatalf("allow write status=%d allowed=%v", status, check.Allowed)
+	}
+
+	status = api.JSON(http.MethodPost, "/access/check", map[string]any{
+		"tenant_id": ten.ID, "resource": "documents", "action": "read",
+	}, nil)
+	if status != http.StatusBadRequest {
+		t.Fatalf("missing user_id status=%d", status)
 	}
 }

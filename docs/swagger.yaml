@@ -1,5 +1,68 @@
 basePath: /
 definitions:
+  access.CheckInput:
+    properties:
+      action:
+        example: read
+        type: string
+      resource:
+        example: documents
+        type: string
+      tenant_id:
+        example: 01912345-6789-7abc-def0-123456789abc
+        type: string
+      user_id:
+        example: 01912345-6789-7abc-def0-123456789abc
+        type: string
+    type: object
+  access.CheckResponse:
+    properties:
+      allowed:
+        type: boolean
+    type: object
+  action.Action:
+    properties:
+      app_id:
+        example: 01912345-6789-7abc-def0-123456789abc
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      id:
+        example: 01912345-6789-7abc-def0-123456789abc
+        type: string
+      metadata:
+        type: object
+      name:
+        example: read
+        type: string
+      updated_at:
+        type: string
+    type: object
+  action.CreateInput:
+    properties:
+      metadata:
+        type: object
+      name:
+        example: read
+        type: string
+    type: object
+  action.ListResponse:
+    properties:
+      actions:
+        items:
+          $ref: '#/definitions/action.Action'
+        type: array
+    type: object
+  action.UpdateInput:
+    properties:
+      metadata:
+        type: object
+      name:
+        example: read
+        type: string
+    type: object
   adminapikey.AdminAPIKey:
     properties:
       created_at:
@@ -101,6 +164,86 @@ definitions:
     properties:
       error:
         example: resource not found
+        type: string
+    type: object
+  permission.CreateInput:
+    properties:
+      action_id:
+        example: 01912345-6789-7abc-def0-123456789abc
+        type: string
+      resource_id:
+        example: 01912345-6789-7abc-def0-123456789abc
+        type: string
+    type: object
+  permission.ListResponse:
+    properties:
+      permissions:
+        items:
+          $ref: '#/definitions/permission.Permission'
+        type: array
+    type: object
+  permission.Permission:
+    properties:
+      action_id:
+        example: 01912345-6789-7abc-def0-123456789abc
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      id:
+        example: 01912345-6789-7abc-def0-123456789abc
+        type: string
+      resource_id:
+        example: 01912345-6789-7abc-def0-123456789abc
+        type: string
+      role_id:
+        example: 01912345-6789-7abc-def0-123456789abc
+        type: string
+      updated_at:
+        type: string
+    type: object
+  resource.CreateInput:
+    properties:
+      metadata:
+        type: object
+      name:
+        example: documents
+        type: string
+    type: object
+  resource.ListResponse:
+    properties:
+      resources:
+        items:
+          $ref: '#/definitions/resource.Resource'
+        type: array
+    type: object
+  resource.Resource:
+    properties:
+      app_id:
+        example: 01912345-6789-7abc-def0-123456789abc
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      id:
+        example: 01912345-6789-7abc-def0-123456789abc
+        type: string
+      metadata:
+        type: object
+      name:
+        example: documents
+        type: string
+      updated_at:
+        type: string
+    type: object
+  resource.UpdateInput:
+    properties:
+      metadata:
+        type: object
+      name:
+        example: documents
         type: string
     type: object
   role.CreateInput:
@@ -277,6 +420,182 @@ info:
   title: OpenAura API
   version: "1.0"
 paths:
+  /access/check:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - default: "1"
+        description: API version
+        in: header
+        name: X-API-Version
+        required: true
+        type: string
+      - description: App API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: Access check request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/access.CheckInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/access.CheckResponse'
+      summary: Check access
+      tags:
+      - access
+  /actions:
+    get:
+      parameters:
+      - default: "1"
+        description: API version
+        in: header
+        name: X-API-Version
+        required: true
+        type: string
+      - description: App API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/action.ListResponse'
+      summary: List actions
+      tags:
+      - actions
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - default: "1"
+        description: API version
+        in: header
+        name: X-API-Version
+        required: true
+        type: string
+      - description: App API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: Action to create
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/action.CreateInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/action.Action'
+      summary: Create action
+      tags:
+      - actions
+  /actions/{id}:
+    delete:
+      parameters:
+      - default: "1"
+        description: API version
+        in: header
+        name: X-API-Version
+        required: true
+        type: string
+      - description: App API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: Action ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      summary: Delete action
+      tags:
+      - actions
+    get:
+      parameters:
+      - default: "1"
+        description: API version
+        in: header
+        name: X-API-Version
+        required: true
+        type: string
+      - description: App API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: Action ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/action.Action'
+      summary: Get action
+      tags:
+      - actions
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - default: "1"
+        description: API version
+        in: header
+        name: X-API-Version
+        required: true
+        type: string
+      - description: App API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: Action ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/action.UpdateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/action.Action'
+      summary: Update action
+      tags:
+      - actions
   /admin/api_keys:
     get:
       parameters:
@@ -692,6 +1011,150 @@ paths:
       summary: Get app API key
       tags:
       - api_keys
+  /resources:
+    get:
+      parameters:
+      - default: "1"
+        description: API version
+        in: header
+        name: X-API-Version
+        required: true
+        type: string
+      - description: App API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/resource.ListResponse'
+      summary: List resources
+      tags:
+      - resources
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - default: "1"
+        description: API version
+        in: header
+        name: X-API-Version
+        required: true
+        type: string
+      - description: App API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: Resource to create
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/resource.CreateInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/resource.Resource'
+      summary: Create resource
+      tags:
+      - resources
+  /resources/{id}:
+    delete:
+      parameters:
+      - default: "1"
+        description: API version
+        in: header
+        name: X-API-Version
+        required: true
+        type: string
+      - description: App API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: Resource ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      summary: Delete resource
+      tags:
+      - resources
+    get:
+      parameters:
+      - default: "1"
+        description: API version
+        in: header
+        name: X-API-Version
+        required: true
+        type: string
+      - description: App API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: Resource ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/resource.Resource'
+      summary: Get resource
+      tags:
+      - resources
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - default: "1"
+        description: API version
+        in: header
+        name: X-API-Version
+        required: true
+        type: string
+      - description: App API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: Resource ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/resource.UpdateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/resource.Resource'
+      summary: Update resource
+      tags:
+      - resources
   /roleassignments:
     get:
       parameters:
@@ -992,6 +1455,142 @@ paths:
       summary: Update role
       tags:
       - roles
+  /roles/{id}/permissions:
+    get:
+      parameters:
+      - default: "1"
+        description: API version
+        in: header
+        name: X-API-Version
+        required: true
+        type: string
+      - description: App API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Filter by resource ID
+        in: query
+        name: resource_id
+        type: string
+      - description: Filter by action ID
+        in: query
+        name: action_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/permission.ListResponse'
+      summary: List role permissions
+      tags:
+      - permissions
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - default: "1"
+        description: API version
+        in: header
+        name: X-API-Version
+        required: true
+        type: string
+      - description: App API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Permission to create
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/permission.CreateInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/permission.Permission'
+      summary: Create role permission
+      tags:
+      - permissions
+  /roles/{id}/permissions/{permission_id}:
+    delete:
+      parameters:
+      - default: "1"
+        description: API version
+        in: header
+        name: X-API-Version
+        required: true
+        type: string
+      - description: App API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Permission ID
+        in: path
+        name: permission_id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      summary: Delete role permission
+      tags:
+      - permissions
+    get:
+      parameters:
+      - default: "1"
+        description: API version
+        in: header
+        name: X-API-Version
+        required: true
+        type: string
+      - description: App API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Permission ID
+        in: path
+        name: permission_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/permission.Permission'
+      summary: Get role permission
+      tags:
+      - permissions
   /tenants:
     get:
       parameters:
@@ -1310,6 +1909,10 @@ tags:
 - name: tenants
 - name: roles
 - name: roleassignments
+- name: resources
+- name: actions
+- name: permissions
+- name: access
 - name: api_keys
 - name: admin-apps
 - name: admin-api_keys

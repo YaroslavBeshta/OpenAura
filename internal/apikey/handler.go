@@ -158,7 +158,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 func writeRepoError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, store.ErrNotFound):
-		httpx.WriteError(w, http.StatusNotFound, "api key not found")
+		httpx.WriteError(w, http.StatusNotFound, "not found")
 	case errors.Is(err, store.ErrInvalidInput), errors.Is(err, store.ErrFKViolation):
 		httpx.WriteError(w, http.StatusBadRequest, err.Error())
 	default:

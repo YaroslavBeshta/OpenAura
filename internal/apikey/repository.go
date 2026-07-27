@@ -23,6 +23,9 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 }
 
 func (r *Repository) Create(ctx context.Context, appID uuid.UUID, in CreateInput) (APIKey, error) {
+	if err := r.requireActiveApp(ctx, appID); err != nil {
+		return APIKey{}, err
+	}
 	metadata, err := httpx.NormalizeMetadata(in.Metadata)
 	if err != nil {
 		return APIKey{}, fmt.Errorf("%w: metadata must be a JSON object", store.ErrInvalidInput)
@@ -111,10 +114,14 @@ func (r *Repository) Revoke(ctx context.Context, appID, id uuid.UUID) error {
 }
 
 func (r *Repository) ResolveAppIDByKeyHash(ctx context.Context, keyHash string) (uuid.UUID, error) {
+	// Key must be active and its app must still exist (not soft-deleted).
 	const q = `
-		SELECT app_id
-		FROM api_keys
-		WHERE key_hash = $1 AND revoked_at IS NULL`
+		SELECT k.app_id
+		FROM api_keys k
+		INNER JOIN apps a ON a.id = k.app_id
+		WHERE k.key_hash = $1
+		  AND k.revoked_at IS NULL
+		  AND a.deleted_at IS NULL`
 	var appID uuid.UUID
 	err := r.pool.QueryRow(ctx, q, keyHash).Scan(&appID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -124,6 +131,19 @@ func (r *Repository) ResolveAppIDByKeyHash(ctx context.Context, keyHash string) 
 		return uuid.Nil, fmt.Errorf("resolve app key: %w", err)
 	}
 	return appID, nil
+}
+
+func (r *Repository) requireActiveApp(ctx context.Context, appID uuid.UUID) error {
+	const q = `SELECT 1 FROM apps WHERE id = $1 AND deleted_at IS NULL`
+	var one int
+	err := r.pool.QueryRow(ctx, q, appID).Scan(&one)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return store.ErrNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("check app: %w", err)
+	}
+	return nil
 }
 
 func clampPagination(limit, offset int) (int, int) {

@@ -20,9 +20,12 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
-func (r *Repository) Create(ctx context.Context, in CreateInput) (RoleAssignment, error) {
+func (r *Repository) Create(ctx context.Context, appID uuid.UUID, in CreateInput) (RoleAssignment, error) {
 	if in.UserID == uuid.Nil || in.RoleID == uuid.Nil || in.TenantID == uuid.Nil {
 		return RoleAssignment{}, fmt.Errorf("%w: user_id, role_id, and tenant_id are required", store.ErrInvalidInput)
+	}
+	if err := r.requireEntitiesInApp(ctx, appID, in.UserID, in.RoleID, in.TenantID); err != nil {
+		return RoleAssignment{}, err
 	}
 
 	now := time.Now().UTC()
@@ -119,6 +122,9 @@ func (r *Repository) Update(ctx context.Context, appID, id uuid.UUID, in UpdateI
 	if userID == uuid.Nil || roleID == uuid.Nil || tenantID == uuid.Nil {
 		return RoleAssignment{}, fmt.Errorf("%w: user_id, role_id, and tenant_id are required", store.ErrInvalidInput)
 	}
+	if err := r.requireEntitiesInApp(ctx, appID, userID, roleID, tenantID); err != nil {
+		return RoleAssignment{}, err
+	}
 
 	const q = `
 		UPDATE roleassignments ra
@@ -159,6 +165,24 @@ func (r *Repository) SoftDelete(ctx context.Context, appID, id uuid.UUID) error 
 	}
 	if tag.RowsAffected() == 0 {
 		return store.ErrNotFound
+	}
+	return nil
+}
+
+// requireEntitiesInApp ensures user, role, and tenant exist in the authenticated app.
+// Missing or cross-app IDs are treated as FK violations so callers cannot probe other apps.
+func (r *Repository) requireEntitiesInApp(ctx context.Context, appID, userID, roleID, tenantID uuid.UUID) error {
+	const q = `
+		SELECT
+			EXISTS(SELECT 1 FROM users WHERE id = $2 AND app_id = $1 AND deleted_at IS NULL),
+			EXISTS(SELECT 1 FROM roles WHERE id = $3 AND app_id = $1 AND deleted_at IS NULL),
+			EXISTS(SELECT 1 FROM tenants WHERE id = $4 AND app_id = $1 AND deleted_at IS NULL)`
+	var userOK, roleOK, tenantOK bool
+	if err := r.pool.QueryRow(ctx, q, appID, userID, roleID, tenantID).Scan(&userOK, &roleOK, &tenantOK); err != nil {
+		return fmt.Errorf("check assignment entities: %w", err)
+	}
+	if !userOK || !roleOK || !tenantOK {
+		return store.ErrFKViolation
 	}
 	return nil
 }

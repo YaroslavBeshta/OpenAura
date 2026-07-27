@@ -18,6 +18,267 @@
     "host": "localhost:8080",
     "basePath": "/",
     "paths": {
+        "/access/check": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "access"
+                ],
+                "summary": "Check access",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "1",
+                        "description": "API version",
+                        "name": "X-API-Version",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "App API key",
+                        "name": "X-API-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Access check request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/access.CheckInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/access.CheckResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/actions": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "actions"
+                ],
+                "summary": "List actions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "1",
+                        "description": "API version",
+                        "name": "X-API-Version",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "App API key",
+                        "name": "X-API-Key",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/action.ListResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "actions"
+                ],
+                "summary": "Create action",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "1",
+                        "description": "API version",
+                        "name": "X-API-Version",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "App API key",
+                        "name": "X-API-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Action to create",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/action.CreateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/action.Action"
+                        }
+                    }
+                }
+            }
+        },
+        "/actions/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "actions"
+                ],
+                "summary": "Get action",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "1",
+                        "description": "API version",
+                        "name": "X-API-Version",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "App API key",
+                        "name": "X-API-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Action ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/action.Action"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "actions"
+                ],
+                "summary": "Delete action",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "1",
+                        "description": "API version",
+                        "name": "X-API-Version",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "App API key",
+                        "name": "X-API-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Action ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            },
+            "patch": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "actions"
+                ],
+                "summary": "Update action",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "1",
+                        "description": "API version",
+                        "name": "X-API-Version",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "App API key",
+                        "name": "X-API-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Action ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to update",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/action.UpdateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/action.Action"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/api_keys": {
             "get": {
                 "produces": [
@@ -632,6 +893,219 @@
                 }
             }
         },
+        "/resources": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "List resources",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "1",
+                        "description": "API version",
+                        "name": "X-API-Version",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "App API key",
+                        "name": "X-API-Key",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/resource.ListResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "Create resource",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "1",
+                        "description": "API version",
+                        "name": "X-API-Version",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "App API key",
+                        "name": "X-API-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Resource to create",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/resource.CreateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/resource.Resource"
+                        }
+                    }
+                }
+            }
+        },
+        "/resources/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "Get resource",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "1",
+                        "description": "API version",
+                        "name": "X-API-Version",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "App API key",
+                        "name": "X-API-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Resource ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/resource.Resource"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "resources"
+                ],
+                "summary": "Delete resource",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "1",
+                        "description": "API version",
+                        "name": "X-API-Version",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "App API key",
+                        "name": "X-API-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Resource ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            },
+            "patch": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "Update resource",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "1",
+                        "description": "API version",
+                        "name": "X-API-Version",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "App API key",
+                        "name": "X-API-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Resource ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to update",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/resource.UpdateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/resource.Resource"
+                        }
+                    }
+                }
+            }
+        },
         "/roleassignments": {
             "get": {
                 "produces": [
@@ -1072,6 +1546,206 @@
                         "schema": {
                             "$ref": "#/definitions/role.Role"
                         }
+                    }
+                }
+            }
+        },
+        "/roles/{id}/permissions": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "permissions"
+                ],
+                "summary": "List role permissions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "1",
+                        "description": "API version",
+                        "name": "X-API-Version",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "App API key",
+                        "name": "X-API-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Role ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by resource ID",
+                        "name": "resource_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by action ID",
+                        "name": "action_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/permission.ListResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "permissions"
+                ],
+                "summary": "Create role permission",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "1",
+                        "description": "API version",
+                        "name": "X-API-Version",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "App API key",
+                        "name": "X-API-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Role ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Permission to create",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/permission.CreateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/permission.Permission"
+                        }
+                    }
+                }
+            }
+        },
+        "/roles/{id}/permissions/{permission_id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "permissions"
+                ],
+                "summary": "Get role permission",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "1",
+                        "description": "API version",
+                        "name": "X-API-Version",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "App API key",
+                        "name": "X-API-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Role ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Permission ID",
+                        "name": "permission_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/permission.Permission"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "permissions"
+                ],
+                "summary": "Delete role permission",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "1",
+                        "description": "API version",
+                        "name": "X-API-Version",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "App API key",
+                        "name": "X-API-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Role ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Permission ID",
+                        "name": "permission_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
                     }
                 }
             }
@@ -1536,6 +2210,99 @@
         }
     },
     "definitions": {
+        "access.CheckInput": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "example": "read"
+                },
+                "resource": {
+                    "type": "string",
+                    "example": "documents"
+                },
+                "tenant_id": {
+                    "type": "string",
+                    "example": "01912345-6789-7abc-def0-123456789abc"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "01912345-6789-7abc-def0-123456789abc"
+                }
+            }
+        },
+        "access.CheckResponse": {
+            "type": "object",
+            "properties": {
+                "allowed": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "action.Action": {
+            "type": "object",
+            "properties": {
+                "app_id": {
+                    "type": "string",
+                    "example": "01912345-6789-7abc-def0-123456789abc"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "01912345-6789-7abc-def0-123456789abc"
+                },
+                "metadata": {
+                    "type": "object"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "read"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "action.CreateInput": {
+            "type": "object",
+            "properties": {
+                "metadata": {
+                    "type": "object"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "read"
+                }
+            }
+        },
+        "action.ListResponse": {
+            "type": "object",
+            "properties": {
+                "actions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/action.Action"
+                    }
+                }
+            }
+        },
+        "action.UpdateInput": {
+            "type": "object",
+            "properties": {
+                "metadata": {
+                    "type": "object"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "read"
+                }
+            }
+        },
         "adminapikey.AdminAPIKey": {
             "type": "object",
             "properties": {
@@ -1690,6 +2457,124 @@
                 "error": {
                     "type": "string",
                     "example": "resource not found"
+                }
+            }
+        },
+        "permission.CreateInput": {
+            "type": "object",
+            "properties": {
+                "action_id": {
+                    "type": "string",
+                    "example": "01912345-6789-7abc-def0-123456789abc"
+                },
+                "resource_id": {
+                    "type": "string",
+                    "example": "01912345-6789-7abc-def0-123456789abc"
+                }
+            }
+        },
+        "permission.ListResponse": {
+            "type": "object",
+            "properties": {
+                "permissions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/permission.Permission"
+                    }
+                }
+            }
+        },
+        "permission.Permission": {
+            "type": "object",
+            "properties": {
+                "action_id": {
+                    "type": "string",
+                    "example": "01912345-6789-7abc-def0-123456789abc"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "01912345-6789-7abc-def0-123456789abc"
+                },
+                "resource_id": {
+                    "type": "string",
+                    "example": "01912345-6789-7abc-def0-123456789abc"
+                },
+                "role_id": {
+                    "type": "string",
+                    "example": "01912345-6789-7abc-def0-123456789abc"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "resource.CreateInput": {
+            "type": "object",
+            "properties": {
+                "metadata": {
+                    "type": "object"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "documents"
+                }
+            }
+        },
+        "resource.ListResponse": {
+            "type": "object",
+            "properties": {
+                "resources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/resource.Resource"
+                    }
+                }
+            }
+        },
+        "resource.Resource": {
+            "type": "object",
+            "properties": {
+                "app_id": {
+                    "type": "string",
+                    "example": "01912345-6789-7abc-def0-123456789abc"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "01912345-6789-7abc-def0-123456789abc"
+                },
+                "metadata": {
+                    "type": "object"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "documents"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "resource.UpdateInput": {
+            "type": "object",
+            "properties": {
+                "metadata": {
+                    "type": "object"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "documents"
                 }
             }
         },
@@ -1946,6 +2831,18 @@
         },
         {
             "name": "roleassignments"
+        },
+        {
+            "name": "resources"
+        },
+        {
+            "name": "actions"
+        },
+        {
+            "name": "permissions"
+        },
+        {
+            "name": "access"
         },
         {
             "name": "api_keys"

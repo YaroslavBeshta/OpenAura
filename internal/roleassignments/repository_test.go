@@ -74,7 +74,7 @@ func TestRepository_CreateGetUpdateDelete(t *testing.T) {
 	admin := f.seedRole(t, ctx, appID, "admin")
 	member := f.seedRole(t, ctx, appID, "member")
 
-	created, err := f.assign.Create(ctx, CreateInput{
+	created, err := f.assign.Create(ctx, appID, CreateInput{
 		UserID:   u.ID,
 		RoleID:   admin.ID,
 		TenantID: ten.ID,
@@ -119,14 +119,14 @@ func TestRepository_ConflictAndFK(t *testing.T) {
 	ten := f.seedTenant(t, ctx, appID, "acme")
 	admin := f.seedRole(t, ctx, appID, "admin")
 
-	if _, err := f.assign.Create(ctx, CreateInput{
+	if _, err := f.assign.Create(ctx, appID, CreateInput{
 		UserID:   u.ID,
 		RoleID:   admin.ID,
 		TenantID: ten.ID,
 	}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if _, err := f.assign.Create(ctx, CreateInput{
+	if _, err := f.assign.Create(ctx, appID, CreateInput{
 		UserID:   u.ID,
 		RoleID:   admin.ID,
 		TenantID: ten.ID,
@@ -135,7 +135,7 @@ func TestRepository_ConflictAndFK(t *testing.T) {
 	}
 
 	missing := uuid.Must(uuid.NewV7())
-	if _, err := f.assign.Create(ctx, CreateInput{
+	if _, err := f.assign.Create(ctx, appID, CreateInput{
 		UserID:   missing,
 		RoleID:   admin.ID,
 		TenantID: ten.ID,
@@ -143,7 +143,7 @@ func TestRepository_ConflictAndFK(t *testing.T) {
 		t.Fatalf("missing user fk: %v, want ErrFKViolation or ErrAppMismatch", err)
 	}
 
-	if _, err := f.assign.Create(ctx, CreateInput{}); !errors.Is(err, store.ErrInvalidInput) {
+	if _, err := f.assign.Create(ctx, appID, CreateInput{}); !errors.Is(err, store.ErrInvalidInput) {
 		t.Fatalf("empty create: %v", err)
 	}
 }
@@ -170,7 +170,7 @@ func TestRepository_ListFiltersAndPagination(t *testing.T) {
 	}
 	var deletedID uuid.UUID
 	for i, s := range seeds {
-		a, err := f.assign.Create(ctx, CreateInput{
+		a, err := f.assign.Create(ctx, appID, CreateInput{
 			UserID:   s.user,
 			RoleID:   s.role,
 			TenantID: s.tenant,
@@ -251,7 +251,7 @@ func TestRepository_ReuseAfterSoftDelete(t *testing.T) {
 	ten := f.seedTenant(t, ctx, appID, "acme")
 	admin := f.seedRole(t, ctx, appID, "admin")
 
-	first, err := f.assign.Create(ctx, CreateInput{
+	first, err := f.assign.Create(ctx, appID, CreateInput{
 		UserID: u.ID, RoleID: admin.ID, TenantID: ten.ID,
 	})
 	if err != nil {
@@ -260,7 +260,7 @@ func TestRepository_ReuseAfterSoftDelete(t *testing.T) {
 	if err := f.assign.SoftDelete(ctx, appID, first.ID); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
-	second, err := f.assign.Create(ctx, CreateInput{
+	second, err := f.assign.Create(ctx, appID, CreateInput{
 		UserID: u.ID, RoleID: admin.ID, TenantID: ten.ID,
 	})
 	if err != nil {
@@ -268,5 +268,54 @@ func TestRepository_ReuseAfterSoftDelete(t *testing.T) {
 	}
 	if second.ID == first.ID {
 		t.Fatal("expected new assignment id")
+	}
+}
+
+func TestRepository_RejectsCrossAppEntities(t *testing.T) {
+	f, ctx, appID := newFixtures(t)
+	otherApp := testutil.SeedApp(t, f.assign.pool)
+
+	u := f.seedUser(t, ctx, appID, "a@example.com")
+	ten := f.seedTenant(t, ctx, appID, "acme")
+	admin := f.seedRole(t, ctx, appID, "admin")
+
+	otherUser := f.seedUser(t, ctx, otherApp, "other@example.com")
+	otherTenant := f.seedTenant(t, ctx, otherApp, "other")
+	otherRole := f.seedRole(t, ctx, otherApp, "other-role")
+
+	if _, err := f.assign.Create(ctx, appID, CreateInput{
+		UserID: otherUser.ID, RoleID: admin.ID, TenantID: ten.ID,
+	}); !errors.Is(err, store.ErrFKViolation) {
+		t.Fatalf("cross-app user: %v", err)
+	}
+	if _, err := f.assign.Create(ctx, appID, CreateInput{
+		UserID: u.ID, RoleID: otherRole.ID, TenantID: ten.ID,
+	}); !errors.Is(err, store.ErrFKViolation) {
+		t.Fatalf("cross-app role: %v", err)
+	}
+	if _, err := f.assign.Create(ctx, appID, CreateInput{
+		UserID: u.ID, RoleID: admin.ID, TenantID: otherTenant.ID,
+	}); !errors.Is(err, store.ErrFKViolation) {
+		t.Fatalf("cross-app tenant: %v", err)
+	}
+
+	// Other app's consistent trio still rejected for this app's key scope.
+	if _, err := f.assign.Create(ctx, appID, CreateInput{
+		UserID: otherUser.ID, RoleID: otherRole.ID, TenantID: otherTenant.ID,
+	}); !errors.Is(err, store.ErrFKViolation) {
+		t.Fatalf("other app entities: %v", err)
+	}
+
+	created, err := f.assign.Create(ctx, appID, CreateInput{
+		UserID: u.ID, RoleID: admin.ID, TenantID: ten.ID,
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if _, err := f.assign.Update(ctx, appID, created.ID, UpdateInput{UserID: &otherUser.ID}); !errors.Is(err, store.ErrFKViolation) {
+		t.Fatalf("update cross-app user: %v", err)
+	}
+	if _, err := f.assign.GetByID(ctx, otherApp, created.ID); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("cross-app get: %v", err)
 	}
 }

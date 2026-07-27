@@ -69,12 +69,15 @@ func Reset(t *testing.T, pool *pgxpool.Pool) {
 
 	_, err := pool.Exec(ctx, `
 		TRUNCATE TABLE
+			permissions,
 			roleassignments,
 			api_keys,
 			admin_api_keys,
 			users,
 			roles,
 			tenants,
+			resources,
+			actions,
 			apps
 		RESTART IDENTITY CASCADE`)
 	if err != nil {

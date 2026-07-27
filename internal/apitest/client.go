@@ -11,10 +11,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/openaura/openaura/internal/access"
+	"github.com/openaura/openaura/internal/action"
 	"github.com/openaura/openaura/internal/adminapikey"
-	"github.com/openaura/openaura/internal/app"
 	"github.com/openaura/openaura/internal/apikey"
+	"github.com/openaura/openaura/internal/app"
 	"github.com/openaura/openaura/internal/httpserver"
+	"github.com/openaura/openaura/internal/permission"
+	"github.com/openaura/openaura/internal/resource"
 	"github.com/openaura/openaura/internal/role"
 	"github.com/openaura/openaura/internal/roleassignments"
 	"github.com/openaura/openaura/internal/tenant"
@@ -24,12 +28,12 @@ import (
 
 // API is an httptest-backed OpenAura server for integration tests.
 type API struct {
-	t         *testing.T
-	server    *httptest.Server
-	Pool      *pgxpool.Pool
-	AdminKey  string
-	AppKey    string
-	AppID     uuid.UUID
+	t        *testing.T
+	server   *httptest.Server
+	Pool     *pgxpool.Pool
+	AdminKey string
+	AppKey   string
+	AppID    uuid.UUID
 }
 
 // New wires the full server against a clean database with bootstrap keys.
@@ -44,6 +48,10 @@ func New(t *testing.T) *API {
 	tenantRepo := tenant.NewRepository(pool)
 	roleRepo := role.NewRepository(pool)
 	assignmentRepo := roleassignments.NewRepository(pool)
+	resourceRepo := resource.NewRepository(pool)
+	actionRepo := action.NewRepository(pool)
+	permissionRepo := permission.NewRepository(pool)
+	accessRepo := access.NewRepository(pool)
 	apiKeyRepo := apikey.NewRepository(pool)
 	adminKeyRepo := adminapikey.NewRepository(pool)
 
@@ -58,6 +66,10 @@ func New(t *testing.T) *API {
 		Tenants:         tenant.NewHandler(tenantRepo),
 		Roles:           role.NewHandler(roleRepo),
 		RoleAssignments: roleassignments.NewHandler(assignmentRepo),
+		Resources:       resource.NewHandler(resourceRepo),
+		Actions:         action.NewHandler(actionRepo),
+		Permissions:     permission.NewHandler(permissionRepo),
+		Access:          access.NewHandler(accessRepo),
 		APIKeys:         apikey.NewHandler(apiKeyRepo),
 		AdminAPIKeys:    adminapikey.NewHandler(adminKeyRepo),
 	}, httpserver.KeyLookups{
@@ -127,6 +139,46 @@ func (a *API) Do(method, path, apiVersion, apiKey string, body any) *http.Respon
 func (a *API) JSON(method, path string, body, out any) int {
 	a.t.Helper()
 	return a.jsonWithKey(method, path, "1", a.AppKey, body, out)
+}
+
+// JSONWithKey is like JSON but uses an explicit API key (for cross-app / revoked-key tests).
+func (a *API) JSONWithKey(method, path, apiKey string, body, out any) int {
+	a.t.Helper()
+	return a.jsonWithKey(method, path, "1", apiKey, body, out)
+}
+
+// DoBearer sends a request authenticated via Authorization: Bearer (not X-API-Key).
+func (a *API) DoBearer(method, path, apiVersion, apiKey string, body any) *http.Response {
+	a.t.Helper()
+
+	var reader io.Reader
+	if body != nil {
+		raw, err := json.Marshal(body)
+		if err != nil {
+			a.t.Fatalf("marshal body: %v", err)
+		}
+		reader = bytes.NewReader(raw)
+	}
+
+	req, err := http.NewRequest(method, a.server.URL+path, reader)
+	if err != nil {
+		a.t.Fatalf("new request: %v", err)
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if apiVersion != "" {
+		req.Header.Set("X-API-Version", apiVersion)
+	}
+	if apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		a.t.Fatalf("do request: %v", err)
+	}
+	return resp
 }
 
 func (a *API) AdminJSON(method, path string, body, out any) int {

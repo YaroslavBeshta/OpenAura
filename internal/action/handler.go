@@ -1,4 +1,4 @@
-package roleassignments
+package action
 
 import (
 	"errors"
@@ -18,17 +18,17 @@ func NewHandler(repo *Repository) *Handler {
 	return &Handler{repo: repo}
 }
 
-// Create creates a role assignment within the authenticated app.
+// Create creates an action in the authenticated app.
 //
-//	@Summary		Create role assignment
-//	@Tags			roleassignments
+//	@Summary		Create action
+//	@Tags			actions
 //	@Accept			json
 //	@Produce		json
 //	@Param			X-API-Version	header		string		true	"API version"	default(1)
 //	@Param			X-API-Key		header		string		true	"App API key"
-//	@Param			body			body		CreateInput	true	"Assignment to create"
-//	@Success		201				{object}	RoleAssignment
-//	@Router			/roleassignments [post]
+//	@Param			body			body		CreateInput	true	"Action to create"
+//	@Success		201				{object}	Action
+//	@Router			/actions [post]
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	appID, ok := auth.RequireAppID(w, r)
 	if !ok {
@@ -47,16 +47,16 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusCreated, a)
 }
 
-// Get returns a role assignment by id within the authenticated app.
+// Get returns an action by id within the authenticated app.
 //
-//	@Summary		Get role assignment
-//	@Tags			roleassignments
+//	@Summary		Get action
+//	@Tags			actions
 //	@Produce		json
 //	@Param			X-API-Version	header		string	true	"API version"	default(1)
 //	@Param			X-API-Key		header		string	true	"App API key"
-//	@Param			id				path		string	true	"Role assignment ID"
-//	@Success		200				{object}	RoleAssignment
-//	@Router			/roleassignments/{id} [get]
+//	@Param			id				path		string	true	"Action ID"
+//	@Success		200				{object}	Action
+//	@Router			/actions/{id} [get]
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	appID, ok := auth.RequireAppID(w, r)
 	if !ok {
@@ -64,7 +64,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "invalid role assignment id")
+		httpx.WriteError(w, http.StatusBadRequest, "invalid action id")
 		return
 	}
 	a, err := h.repo.GetByID(r.Context(), appID, id)
@@ -75,71 +75,41 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, a)
 }
 
-// List returns role assignments for the authenticated app.
+// List returns actions for the authenticated app.
 //
-//	@Summary		List role assignments
-//	@Tags			roleassignments
+//	@Summary		List actions
+//	@Tags			actions
 //	@Produce		json
 //	@Param			X-API-Version	header		string	true	"API version"	default(1)
 //	@Param			X-API-Key		header		string	true	"App API key"
-//	@Param			user_id			query		string	false	"Filter by user ID"
-//	@Param			role_id			query		string	false	"Filter by role ID"
-//	@Param			tenant_id		query		string	false	"Filter by tenant ID"
 //	@Success		200				{object}	ListResponse
-//	@Router			/roleassignments [get]
+//	@Router			/actions [get]
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	appID, ok := auth.RequireAppID(w, r)
 	if !ok {
 		return
 	}
 	limit, offset := httpx.Pagination(r)
-	filter := ListFilter{AppID: appID, Limit: limit, Offset: offset}
-
-	if v := r.URL.Query().Get("user_id"); v != "" {
-		id, err := uuid.Parse(v)
-		if err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, "invalid user_id")
-			return
-		}
-		filter.UserID = &id
-	}
-	if v := r.URL.Query().Get("role_id"); v != "" {
-		id, err := uuid.Parse(v)
-		if err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, "invalid role_id")
-			return
-		}
-		filter.RoleID = &id
-	}
-	if v := r.URL.Query().Get("tenant_id"); v != "" {
-		id, err := uuid.Parse(v)
-		if err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, "invalid tenant_id")
-			return
-		}
-		filter.TenantID = &id
-	}
-
-	assignments, err := h.repo.List(r.Context(), filter)
+	items, err := h.repo.List(r.Context(), ListFilter{AppID: appID, Limit: limit, Offset: offset})
 	if err != nil {
 		writeRepoError(w, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, ListResponse{RoleAssignments: assignments})
+	httpx.WriteJSON(w, http.StatusOK, ListResponse{Actions: items})
 }
 
-// Update updates a role assignment within the authenticated app.
+// Update updates an action within the authenticated app.
 //
-//	@Summary		Update role assignment
-//	@Tags			roleassignments
+//	@Summary		Update action
+//	@Tags			actions
 //	@Accept			json
 //	@Produce		json
 //	@Param			X-API-Version	header		string		true	"API version"	default(1)
 //	@Param			X-API-Key		header		string		true	"App API key"
-//	@Param			id				path		string		true	"Role assignment ID"
+//	@Param			id				path		string		true	"Action ID"
 //	@Param			body			body		UpdateInput	true	"Fields to update"
-//	@Success		200				{object}	RoleAssignment
-//	@Router			/roleassignments/{id} [patch]
+//	@Success		200				{object}	Action
+//	@Router			/actions/{id} [patch]
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	appID, ok := auth.RequireAppID(w, r)
 	if !ok {
@@ -147,7 +117,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "invalid role assignment id")
+		httpx.WriteError(w, http.StatusBadRequest, "invalid action id")
 		return
 	}
 	var body UpdateInput
@@ -163,15 +133,15 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, a)
 }
 
-// Delete soft-deletes a role assignment within the authenticated app.
+// Delete soft-deletes an action within the authenticated app.
 //
-//	@Summary		Delete role assignment
-//	@Tags			roleassignments
+//	@Summary		Delete action
+//	@Tags			actions
 //	@Param			X-API-Version	header	string	true	"API version"	default(1)
 //	@Param			X-API-Key		header	string	true	"App API key"
-//	@Param			id				path	string	true	"Role assignment ID"
+//	@Param			id				path	string	true	"Action ID"
 //	@Success		204
-//	@Router			/roleassignments/{id} [delete]
+//	@Router			/actions/{id} [delete]
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	appID, ok := auth.RequireAppID(w, r)
 	if !ok {
@@ -179,7 +149,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "invalid role assignment id")
+		httpx.WriteError(w, http.StatusBadRequest, "invalid action id")
 		return
 	}
 	if err := h.repo.SoftDelete(r.Context(), appID, id); err != nil {
@@ -192,13 +162,9 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 func writeRepoError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, store.ErrNotFound):
-		httpx.WriteError(w, http.StatusNotFound, "role assignment not found")
+		httpx.WriteError(w, http.StatusNotFound, "action not found")
 	case errors.Is(err, store.ErrConflict):
-		httpx.WriteError(w, http.StatusConflict, "role assignment already exists")
-	case errors.Is(err, store.ErrFKViolation):
-		httpx.WriteError(w, http.StatusBadRequest, "user_id, role_id, or tenant_id does not exist")
-	case errors.Is(err, store.ErrAppMismatch):
-		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+		httpx.WriteError(w, http.StatusConflict, "action name already exists in app")
 	case errors.Is(err, store.ErrInvalidInput):
 		httpx.WriteError(w, http.StatusBadRequest, err.Error())
 	default:

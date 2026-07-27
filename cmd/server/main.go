@@ -19,6 +19,10 @@
 //	@tag.name					tenants
 //	@tag.name					roles
 //	@tag.name					roleassignments
+//	@tag.name					resources
+//	@tag.name					actions
+//	@tag.name					permissions
+//	@tag.name					access
 //	@tag.name					api_keys
 //	@tag.name					admin-apps
 //	@tag.name					admin-api_keys
@@ -34,12 +38,16 @@ import (
 	"time"
 
 	_ "github.com/openaura/openaura/docs"
+	"github.com/openaura/openaura/internal/access"
+	"github.com/openaura/openaura/internal/action"
 	"github.com/openaura/openaura/internal/adminapikey"
-	"github.com/openaura/openaura/internal/app"
 	"github.com/openaura/openaura/internal/apikey"
+	"github.com/openaura/openaura/internal/app"
 	"github.com/openaura/openaura/internal/config"
 	"github.com/openaura/openaura/internal/db"
 	"github.com/openaura/openaura/internal/httpserver"
+	"github.com/openaura/openaura/internal/permission"
+	"github.com/openaura/openaura/internal/resource"
 	"github.com/openaura/openaura/internal/role"
 	"github.com/openaura/openaura/internal/roleassignments"
 	"github.com/openaura/openaura/internal/tenant"
@@ -64,6 +72,10 @@ func main() {
 	tenantRepo := tenant.NewRepository(pool)
 	roleRepo := role.NewRepository(pool)
 	assignmentRepo := roleassignments.NewRepository(pool)
+	resourceRepo := resource.NewRepository(pool)
+	actionRepo := action.NewRepository(pool)
+	permissionRepo := permission.NewRepository(pool)
+	accessRepo := access.NewRepository(pool)
 	apiKeyRepo := apikey.NewRepository(pool)
 	adminKeyRepo := adminapikey.NewRepository(pool)
 
@@ -82,6 +94,10 @@ func main() {
 			Tenants:         tenant.NewHandler(tenantRepo),
 			Roles:           role.NewHandler(roleRepo),
 			RoleAssignments: roleassignments.NewHandler(assignmentRepo),
+			Resources:       resource.NewHandler(resourceRepo),
+			Actions:         action.NewHandler(actionRepo),
+			Permissions:     permission.NewHandler(permissionRepo),
+			Access:          access.NewHandler(accessRepo),
 			APIKeys:         apikey.NewHandler(apiKeyRepo),
 			AdminAPIKeys:    adminapikey.NewHandler(adminKeyRepo),
 		}, httpserver.KeyLookups{

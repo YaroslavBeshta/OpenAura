@@ -7,11 +7,15 @@ import (
 
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 
+	"github.com/openaura/openaura/internal/access"
+	"github.com/openaura/openaura/internal/action"
 	"github.com/openaura/openaura/internal/adminapikey"
-	"github.com/openaura/openaura/internal/app"
 	"github.com/openaura/openaura/internal/apikey"
+	"github.com/openaura/openaura/internal/app"
 	"github.com/openaura/openaura/internal/auth"
 	"github.com/openaura/openaura/internal/httpx"
+	"github.com/openaura/openaura/internal/permission"
+	"github.com/openaura/openaura/internal/resource"
 	"github.com/openaura/openaura/internal/role"
 	"github.com/openaura/openaura/internal/roleassignments"
 	"github.com/openaura/openaura/internal/tenant"
@@ -29,6 +33,10 @@ type Handlers struct {
 	Tenants         *tenant.Handler
 	Roles           *role.Handler
 	RoleAssignments *roleassignments.Handler
+	Resources       *resource.Handler
+	Actions         *action.Handler
+	Permissions     *permission.Handler
+	Access          *access.Handler
 	APIKeys         *apikey.Handler
 	AdminAPIKeys    *adminapikey.Handler
 }
@@ -82,11 +90,30 @@ func New(h Handlers, keys KeyLookups) http.Handler {
 	appAPI.HandleFunc("PATCH /roles/{id}", h.Roles.Update)
 	appAPI.HandleFunc("DELETE /roles/{id}", h.Roles.Delete)
 
+	appAPI.HandleFunc("POST /roles/{id}/permissions", h.Permissions.Create)
+	appAPI.HandleFunc("GET /roles/{id}/permissions", h.Permissions.List)
+	appAPI.HandleFunc("GET /roles/{id}/permissions/{permission_id}", h.Permissions.Get)
+	appAPI.HandleFunc("DELETE /roles/{id}/permissions/{permission_id}", h.Permissions.Delete)
+
 	appAPI.HandleFunc("POST /roleassignments", h.RoleAssignments.Create)
 	appAPI.HandleFunc("GET /roleassignments", h.RoleAssignments.List)
 	appAPI.HandleFunc("GET /roleassignments/{id}", h.RoleAssignments.Get)
 	appAPI.HandleFunc("PATCH /roleassignments/{id}", h.RoleAssignments.Update)
 	appAPI.HandleFunc("DELETE /roleassignments/{id}", h.RoleAssignments.Delete)
+
+	appAPI.HandleFunc("POST /resources", h.Resources.Create)
+	appAPI.HandleFunc("GET /resources", h.Resources.List)
+	appAPI.HandleFunc("GET /resources/{id}", h.Resources.Get)
+	appAPI.HandleFunc("PATCH /resources/{id}", h.Resources.Update)
+	appAPI.HandleFunc("DELETE /resources/{id}", h.Resources.Delete)
+
+	appAPI.HandleFunc("POST /actions", h.Actions.Create)
+	appAPI.HandleFunc("GET /actions", h.Actions.List)
+	appAPI.HandleFunc("GET /actions/{id}", h.Actions.Get)
+	appAPI.HandleFunc("PATCH /actions/{id}", h.Actions.Update)
+	appAPI.HandleFunc("DELETE /actions/{id}", h.Actions.Delete)
+
+	appAPI.HandleFunc("POST /access/check", h.Access.Check)
 
 	appAPI.HandleFunc("POST /api_keys", h.APIKeys.Create)
 	appAPI.HandleFunc("GET /api_keys", h.APIKeys.List)

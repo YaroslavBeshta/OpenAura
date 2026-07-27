@@ -89,7 +89,28 @@ func TestRepository_CreateRequiresValidApp(t *testing.T) {
 	repo := NewRepository(pool)
 	ctx := context.Background()
 
-	if _, err := repo.Create(ctx, uuid.Must(uuid.NewV7()), CreateInput{}); !errors.Is(err, store.ErrFKViolation) {
+	if _, err := repo.Create(ctx, uuid.Must(uuid.NewV7()), CreateInput{}); !errors.Is(err, store.ErrNotFound) {
 		t.Fatalf("missing app: %v", err)
+	}
+}
+
+func TestRepository_ResolveRequiresActiveApp(t *testing.T) {
+	pool := testutil.Pool(t)
+	testutil.Reset(t, pool)
+	appID := testutil.SeedApp(t, pool)
+	repo := NewRepository(pool)
+	ctx := context.Background()
+
+	created, err := repo.Create(ctx, appID, CreateInput{})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	_, err = pool.Exec(ctx, `UPDATE apps SET deleted_at = now() WHERE id = $1`, appID)
+	if err != nil {
+		t.Fatalf("soft-delete app: %v", err)
+	}
+	if _, err := repo.ResolveAppIDByKeyHash(ctx, auth.HashAPIKey(created.Key)); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("resolve deleted app: %v", err)
 	}
 }
