@@ -9,6 +9,10 @@ concurrency:
   group: test-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   test:
     name: Go tests
@@ -52,19 +56,34 @@ jobs:
         if: always()
         run: |
           if [[ ! -f coverage.out ]]; then
-            echo "No coverage.out produced" >> "$GITHUB_STEP_SUMMARY"
+            {
+              echo "## Coverage"
+              echo ""
+              echo "_No coverage.out produced._"
+            } | tee coverage-comment.md >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
+          total="$(go tool cover -func=coverage.out | awk '/^total:/ {print $3}')"
           {
             echo "## Coverage"
+            echo ""
+            echo "**Total: ${total}**"
+            echo ""
+            echo '<details><summary>Package breakdown (bottom 20)</summary>'
             echo ""
             echo '```'
             go tool cover -func=coverage.out | tail -n 20
             echo '```'
             echo ""
-            total="$(go tool cover -func=coverage.out | awk '/^total:/ {print $3}')"
-            echo "**Total: ${total}**"
-          } >> "$GITHUB_STEP_SUMMARY"
+            echo '</details>'
+          } | tee coverage-comment.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment coverage on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: coverage
+          path: coverage-comment.md
 
       - name: Upload coverage artifact
         if: always()
