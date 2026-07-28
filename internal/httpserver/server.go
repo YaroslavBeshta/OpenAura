@@ -20,6 +20,7 @@ import (
 	"github.com/openaura/openaura/internal/roleassignments"
 	"github.com/openaura/openaura/internal/tenant"
 	"github.com/openaura/openaura/internal/user"
+	"github.com/openaura/openaura/internal/userauth"
 )
 
 const (
@@ -30,6 +31,7 @@ const (
 type Handlers struct {
 	Apps            *app.Handler
 	Users           *user.Handler
+	UserAuth        *userauth.Handler
 	Tenants         *tenant.Handler
 	Roles           *role.Handler
 	RoleAssignments *roleassignments.Handler
@@ -72,6 +74,9 @@ func New(h Handlers, keys KeyLookups) http.Handler {
 	admin.HandleFunc("DELETE /admin/api_keys/{id}", h.AdminAPIKeys.Delete)
 
 	appAPI := http.NewServeMux()
+	appAPI.HandleFunc("POST /auth/register", h.UserAuth.Register)
+	appAPI.HandleFunc("POST /auth/login", h.UserAuth.Login)
+
 	appAPI.HandleFunc("POST /users", h.Users.Create)
 	appAPI.HandleFunc("GET /users", h.Users.List)
 	appAPI.HandleFunc("GET /users/{id}", h.Users.Get)

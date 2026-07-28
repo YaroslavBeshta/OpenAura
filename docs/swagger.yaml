@@ -406,6 +406,39 @@ definitions:
       updated_at:
         type: string
     type: object
+  userauth.LoginInput:
+    properties:
+      email:
+        example: ada@example.com
+        type: string
+      password:
+        example: correct-horse-battery-staple
+        type: string
+    type: object
+  userauth.RegisterInput:
+    properties:
+      email:
+        example: ada@example.com
+        type: string
+      metadata:
+        type: object
+      password:
+        example: correct-horse-battery-staple
+        type: string
+    type: object
+  userauth.TokenResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        example: 86400
+        type: integer
+      token_type:
+        example: Bearer
+        type: string
+      user:
+        $ref: '#/definitions/user.User'
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -1011,6 +1044,90 @@ paths:
       summary: Get app API key
       tags:
       - api_keys
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - default: "1"
+        description: API version
+        in: header
+        name: X-API-Version
+        required: true
+        type: string
+      - description: App API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: Credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/userauth.LoginInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/userauth.TokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+      summary: Login
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - default: "1"
+        description: API version
+        in: header
+        name: X-API-Version
+        required: true
+        type: string
+      - description: App API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: Registration
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/userauth.RegisterInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/userauth.TokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+      summary: Register user
+      tags:
+      - auth
   /resources:
     get:
       parameters:
@@ -1905,6 +2022,7 @@ schemes:
 - http
 swagger: "2.0"
 tags:
+- name: auth
 - name: users
 - name: tenants
 - name: roles

@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/openaura/openaura/internal/httpx"
 	"github.com/openaura/openaura/internal/store"
@@ -17,6 +18,11 @@ import (
 var (
 	ErrInvalidEmail = errors.New("invalid email")
 )
+
+type querier interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+}
 
 type Repository struct {
 	pool *pgxpool.Pool
@@ -27,6 +33,15 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 }
 
 func (r *Repository) Create(ctx context.Context, appID uuid.UUID, in CreateInput) (User, error) {
+	return r.create(ctx, r.pool, appID, in)
+}
+
+// CreateTx creates a user inside an existing transaction.
+func (r *Repository) CreateTx(ctx context.Context, tx pgx.Tx, appID uuid.UUID, in CreateInput) (User, error) {
+	return r.create(ctx, tx, appID, in)
+}
+
+func (r *Repository) create(ctx context.Context, q querier, appID uuid.UUID, in CreateInput) (User, error) {
 	email, err := normalizeEmail(in.Email)
 	if err != nil {
 		return User{}, err
@@ -45,13 +60,13 @@ func (r *Repository) Create(ctx context.Context, appID uuid.UUID, in CreateInput
 		return User{}, fmt.Errorf("generate uuid: %w", err)
 	}
 
-	const q = `
+	const sql = `
 		INSERT INTO users (id, app_id, email, metadata, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, app_id, email, metadata, created_at, updated_at, deleted_at`
 
 	var u User
-	err = r.pool.QueryRow(ctx, q, id, appID, email, metadata, now, now).Scan(
+	err = q.QueryRow(ctx, sql, id, appID, email, metadata, now, now).Scan(
 		&u.ID, &u.AppID, &u.Email, &u.Metadata, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt,
 	)
 	if err != nil {
@@ -182,4 +197,9 @@ func clampPagination(limit, offset int) (int, int) {
 		offset = 0
 	}
 	return limit, offset
+}
+
+// NormalizeEmail exports email normalization for auth packages.
+func NormalizeEmail(email string) (string, error) {
+	return normalizeEmail(email)
 }

@@ -60,11 +60,20 @@ All require an admin API key.
 
 All require an app API key and are scoped to that app.
 
+### Auth (end-user JWT)
+
+| Method | Path | Body / notes |
+|---|---|---|
+| `POST` | `/auth/register` | `{ "email", "password", "metadata"? }` → JWT + user (`201`) |
+| `POST` | `/auth/login` | `{ "email", "password" }` → JWT + user (`200`) |
+
+Password min length is 8. Tokens are HS256 JWTs (`sub`, `app_id`, `email`, `iss`, `iat`, `exp`). See [How to authenticate](../how-to/authenticate.md).
+
 ### Users
 
 | Method | Path | Body / notes |
 |---|---|---|
-| `POST` | `/users` | `{ "email", "metadata"? }` — email unique per app |
+| `POST` | `/users` | `{ "email", "metadata"? }` — email unique per app; passwordless |
 | `GET` | `/users` | `{ "users": […] }` |
 | `GET` | `/users/{id}` | |
 | `PATCH` | `/users/{id}` | `{ "email"?, "metadata"? }` |
