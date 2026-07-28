@@ -6,6 +6,9 @@
 |---|---|---|---|
 | `DATABASE_URL` | yes | — | Postgres URL, e.g. `postgres://user:pass@localhost:5432/postgres?sslmode=disable` |
 | `HTTP_ADDR` | no | `:8080` | HTTP listen address |
+| `JWT_SECRET` | yes | — | HMAC secret for signing end-user JWTs (share with consumer backends that verify tokens) |
+| `JWT_ISSUER` | no | `openaura` | JWT `iss` claim |
+| `JWT_TTL` | no | `24h` | Access token lifetime (`time.Duration` string) |
 | `BOOTSTRAP_ADMIN_API_KEY` | no | empty | If set, ensures this admin key exists on startup |
 
 Compose / local Postgres helpers (used by `docker-compose.yml` and migration scripts):
@@ -47,7 +50,7 @@ docker compose up -d postgres   # database only
 docker compose up --build       # api + postgres
 ```
 
-The API image exposes port `8080` and expects `DATABASE_URL` (and optionally `BOOTSTRAP_ADMIN_API_KEY`).
+The API image exposes port `8080` and expects `DATABASE_URL`, `JWT_SECRET` (and optionally `JWT_ISSUER`, `JWT_TTL`, `BOOTSTRAP_ADMIN_API_KEY`).
 
 ## Related
 

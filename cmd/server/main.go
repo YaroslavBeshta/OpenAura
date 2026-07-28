@@ -15,6 +15,7 @@
 //	@BasePath					/
 //	@schemes					http
 //
+//	@tag.name					auth
 //	@tag.name					users
 //	@tag.name					tenants
 //	@tag.name					roles
@@ -52,6 +53,8 @@ import (
 	"github.com/openaura/openaura/internal/roleassignments"
 	"github.com/openaura/openaura/internal/tenant"
 	"github.com/openaura/openaura/internal/user"
+	"github.com/openaura/openaura/internal/userauth"
+	"github.com/openaura/openaura/internal/useridentity"
 )
 
 func main() {
@@ -69,6 +72,7 @@ func main() {
 
 	appRepo := app.NewRepository(pool)
 	userRepo := user.NewRepository(pool)
+	identityRepo := useridentity.NewRepository(pool)
 	tenantRepo := tenant.NewRepository(pool)
 	roleRepo := role.NewRepository(pool)
 	assignmentRepo := roleassignments.NewRepository(pool)
@@ -86,11 +90,18 @@ func main() {
 		log.Printf("bootstrap admin api key ensured")
 	}
 
+	tokenCfg := userauth.TokenConfig{
+		Secret: []byte(cfg.JWTSecret),
+		Issuer: cfg.JWTIssuer,
+		TTL:    cfg.JWTTTL,
+	}
+
 	srv := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpserver.New(httpserver.Handlers{
 			Apps:            app.NewHandler(appRepo),
 			Users:           user.NewHandler(userRepo),
+			UserAuth:        userauth.NewHandler(pool, userRepo, identityRepo, tokenCfg),
 			Tenants:         tenant.NewHandler(tenantRepo),
 			Roles:           role.NewHandler(roleRepo),
 			RoleAssignments: roleassignments.NewHandler(assignmentRepo),

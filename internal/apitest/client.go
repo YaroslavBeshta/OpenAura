@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -24,7 +25,12 @@ import (
 	"github.com/openaura/openaura/internal/tenant"
 	"github.com/openaura/openaura/internal/testutil"
 	"github.com/openaura/openaura/internal/user"
+	"github.com/openaura/openaura/internal/userauth"
+	"github.com/openaura/openaura/internal/useridentity"
 )
+
+// TestJWTSecret is the HMAC secret used by apitest servers.
+const TestJWTSecret = "apitest-jwt-secret"
 
 // API is an httptest-backed OpenAura server for integration tests.
 type API struct {
@@ -34,6 +40,7 @@ type API struct {
 	AdminKey string
 	AppKey   string
 	AppID    uuid.UUID
+	TokenCfg userauth.TokenConfig
 }
 
 // New wires the full server with isolated bootstrap keys and app fixtures.
@@ -44,6 +51,7 @@ func New(t *testing.T) *API {
 
 	appRepo := app.NewRepository(pool)
 	userRepo := user.NewRepository(pool)
+	identityRepo := useridentity.NewRepository(pool)
 	tenantRepo := tenant.NewRepository(pool)
 	roleRepo := role.NewRepository(pool)
 	assignmentRepo := roleassignments.NewRepository(pool)
@@ -59,9 +67,16 @@ func New(t *testing.T) *API {
 		t.Fatalf("bootstrap admin key: %v", err)
 	}
 
+	tokenCfg := userauth.TokenConfig{
+		Secret: []byte(TestJWTSecret),
+		Issuer: "openaura-test",
+		TTL:    time.Hour,
+	}
+
 	handler := httpserver.New(httpserver.Handlers{
 		Apps:            app.NewHandler(appRepo),
 		Users:           user.NewHandler(userRepo),
+		UserAuth:        userauth.NewHandler(pool, userRepo, identityRepo, tokenCfg),
 		Tenants:         tenant.NewHandler(tenantRepo),
 		Roles:           role.NewHandler(roleRepo),
 		RoleAssignments: roleassignments.NewHandler(assignmentRepo),
@@ -79,7 +94,7 @@ func New(t *testing.T) *API {
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
 
-	api := &API{t: t, server: server, Pool: pool, AdminKey: adminKey}
+	api := &API{t: t, server: server, Pool: pool, AdminKey: adminKey, TokenCfg: tokenCfg}
 
 	var created app.App
 	status := api.adminJSON(http.MethodPost, "/admin/apps", map[string]any{

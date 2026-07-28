@@ -1,6 +1,8 @@
 # Core concepts
 
-OpenAura is an **authorization data plane** for multi-tenant products. It does not replace your identity provider, sessions, or passwords. It stores the authorization graph and answers: *may this user perform this action on this resource in this tenant?*
+OpenAura is an **authorization data plane** for multi-tenant products. It stores the authorization graph and answers: *may this user perform this action on this resource in this tenant?*
+
+It can also optionally authenticate end users with **email/password** and issue JWTs for consumer apps. Machine access to the API still uses API keys — JWTs are for your product session, not for calling OpenAura RBAC routes.
 
 ## Apps
 
@@ -10,7 +12,16 @@ Admin operators create apps; application servers only ever talk to one app via a
 
 ## Users
 
-A **user** is an authorization subject inside an app, identified primarily by email (unique per app). OpenAura does not authenticate end users. Your product authenticates them, then maps them to an OpenAura `user_id` for checks and assignments.
+A **user** is an authorization subject inside an app, identified primarily by email (unique per app).
+
+Login methods live separately as **identities** (`user_identities`): password today, with room for Google SSO and other providers later. The same user can have multiple identities.
+
+You can:
+
+- Provision users via `POST /users` (no identity — RBAC subject only), or
+- Register via `POST /auth/register` (creates user + password identity → JWT)
+
+Your backend typically proxies register/login, verifies the JWT with `JWT_SECRET`, then calls OpenAura access checks with the app API key and the `user_id` from the token.
 
 ## Tenants
 
@@ -38,13 +49,13 @@ An assignment is the edge `(user, role, tenant)`. That is what makes a permissio
 | Kind | Purpose |
 |---|---|
 | Admin | Platform control plane (`/admin`) |
-| App | Product control + data plane for one app |
+| App | Product control + data plane for one app (including `/auth/*`) |
 
 Keys are secrets for **your servers**, not for browsers.
 
 ## What OpenAura deliberately is not
 
-- Not an OIDC / SSO provider
+- Not a full OIDC / SSO provider (no social login, federation, or browser redirects)
 - Not a policy language (no ABAC/ReBAC expressions beyond this RBAC graph)
 - Not a UI for end users — it is an HTTP API for backends
 

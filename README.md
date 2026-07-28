@@ -12,7 +12,7 @@ Open-source Authentication User Roles & Access management service. Your applicat
 
 ```bash
 cp .env.example .env
-# Optionally set BOOTSTRAP_ADMIN_API_KEY in .env
+# Set JWT_SECRET (required). Optionally set BOOTSTRAP_ADMIN_API_KEY.
 
 docker compose up -d postgres
 make migrate
@@ -23,7 +23,7 @@ Or run API + Postgres together:
 
 ```bash
 cp .env.example .env
-# Set BOOTSTRAP_ADMIN_API_KEY, then:
+# Set JWT_SECRET (required). Optionally set BOOTSTRAP_ADMIN_API_KEY, then:
 docker compose up --build
 ```
 
@@ -38,6 +38,9 @@ The server listens on `:8080` by default.
 |---|---|---|
 | `DATABASE_URL` | yes | Postgres connection string |
 | `HTTP_ADDR` | no | Listen address (default `:8080`) |
+| `JWT_SECRET` | yes | HMAC secret for end-user JWTs |
+| `JWT_ISSUER` | no | JWT issuer (default `openaura`) |
+| `JWT_TTL` | no | Access token lifetime (default `24h`) |
 | `BOOTSTRAP_ADMIN_API_KEY` | no | Seeds an admin API key on startup |
 | `POSTGRES_*` | compose | Used by `docker-compose.yml` for the database |
 
@@ -65,6 +68,13 @@ Integration and deeper material follow [Diátaxis](https://diataxis.fr/):
 | Understand the model | [Explanation](docs/explanation/README.md) |
 
 Docs index: [docs/README.md](docs/README.md)
+
+## Related repositories
+
+| Repo | Purpose |
+|---|---|
+| [OpenAura-Example](https://github.com/YaroslavBeshta/OpenAura-Example) | AuraBooks demoware app — shows calling `POST /access/check` from a real multitenant UI |
+| [OpenAura-UI](https://github.com/YaroslavBeshta/OpenAura-UI) | Admin dashboard for managing OpenAura apps, tenants, users, roles, and permissions |
 
 ## License
 
