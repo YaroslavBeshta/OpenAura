@@ -96,12 +96,18 @@ func main() {
 		TTL:    cfg.JWTTTL,
 	}
 
+	userAuth := userauth.NewHandler(pool, userRepo, identityRepo, tokenCfg)
+	if len(cfg.AppleClientIDs) > 0 {
+		userAuth = userAuth.WithApple(userauth.NewJWKSAppleVerifier(cfg.AppleClientIDs))
+		log.Printf("apple sign-in enabled for %d client id(s)", len(cfg.AppleClientIDs))
+	}
+
 	srv := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpserver.New(httpserver.Handlers{
 			Apps:            app.NewHandler(appRepo),
 			Users:           user.NewHandler(userRepo),
-			UserAuth:        userauth.NewHandler(pool, userRepo, identityRepo, tokenCfg),
+			UserAuth:        userAuth,
 			Tenants:         tenant.NewHandler(tenantRepo),
 			Roles:           role.NewHandler(roleRepo),
 			RoleAssignments: roleassignments.NewHandler(assignmentRepo),

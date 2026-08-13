@@ -41,6 +41,7 @@ type API struct {
 	AppKey   string
 	AppID    uuid.UUID
 	TokenCfg userauth.TokenConfig
+	Apple    *userauth.StaticAppleVerifier
 }
 
 // New wires the full server with isolated bootstrap keys and app fixtures.
@@ -73,10 +74,11 @@ func New(t *testing.T) *API {
 		TTL:    time.Hour,
 	}
 
+	apple := userauth.NewStaticAppleVerifier()
 	handler := httpserver.New(httpserver.Handlers{
 		Apps:            app.NewHandler(appRepo),
 		Users:           user.NewHandler(userRepo),
-		UserAuth:        userauth.NewHandler(pool, userRepo, identityRepo, tokenCfg),
+		UserAuth:        userauth.NewHandler(pool, userRepo, identityRepo, tokenCfg).WithApple(apple),
 		Tenants:         tenant.NewHandler(tenantRepo),
 		Roles:           role.NewHandler(roleRepo),
 		RoleAssignments: roleassignments.NewHandler(assignmentRepo),
@@ -94,7 +96,7 @@ func New(t *testing.T) *API {
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
 
-	api := &API{t: t, server: server, Pool: pool, AdminKey: adminKey, TokenCfg: tokenCfg}
+	api := &API{t: t, server: server, Pool: pool, AdminKey: adminKey, TokenCfg: tokenCfg, Apple: apple}
 
 	var created app.App
 	status := api.adminJSON(http.MethodPost, "/admin/apps", map[string]any{

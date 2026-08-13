@@ -76,6 +76,7 @@ func New(h Handlers, keys KeyLookups) http.Handler {
 	appAPI := http.NewServeMux()
 	appAPI.HandleFunc("POST /auth/register", h.UserAuth.Register)
 	appAPI.HandleFunc("POST /auth/login", h.UserAuth.Login)
+	appAPI.HandleFunc("POST /auth/apple", h.UserAuth.Apple)
 
 	appAPI.HandleFunc("POST /users", h.Users.Create)
 	appAPI.HandleFunc("GET /users", h.Users.List)

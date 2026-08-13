@@ -80,6 +80,28 @@ Notes:
 - `POST /users` still creates passwordless RBAC subjects (they cannot log in; use `/auth/register` for users who need credentials).
 - End-user JWTs are **not** accepted on OpenAura management or access routes — those stay API-key-only.
 
+## Sign in with Apple
+
+Enable `POST /auth/apple` by setting `APPLE_CLIENT_IDS` to the App Store bundle ID and/or Services ID (comma-separated). OpenAura verifies the `identity_token` against [Apple's JWKS](https://appleid.apple.com/auth/keys) (`iss` = `https://appleid.apple.com`, `aud` must match a configured client id).
+
+```bash
+curl -s -X POST "$API/auth/apple" \
+  -H "X-API-Version: 1" \
+  -H "X-API-Key: $APP_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"identity_token":"<apple-identity-token>","email":"ada@example.com"}'
+```
+
+Behavior:
+
+1. If an `apple` identity already exists for the token `sub`, issue a JWT for that user (`200`).
+2. Else if `email` (from the token, or the body on first sign-in) matches an existing user, attach an `apple` identity and issue a JWT (`200`).
+3. Else create a user + `apple` identity (`201`).
+
+Apple may omit email after the first authorization. Send `email` from the native SDK on first sign-in. Without an email and without a prior `apple` identity, the API returns `400`.
+
+If `APPLE_CLIENT_IDS` is empty, the route returns `501`.
+
 ## Examples (API keys)
 
 Admin:

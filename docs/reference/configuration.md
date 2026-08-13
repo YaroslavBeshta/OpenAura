@@ -10,6 +10,7 @@
 | `JWT_ISSUER` | no | `openaura` | JWT `iss` claim |
 | `JWT_TTL` | no | `24h` | Access token lifetime (`time.Duration` string) |
 | `BOOTSTRAP_ADMIN_API_KEY` | no | empty | If set, ensures this admin key exists on startup |
+| `APPLE_CLIENT_IDS` | no | empty | Comma-separated Sign in with Apple audiences (bundle / services IDs). Enables `POST /auth/apple` |
 
 Compose / local Postgres helpers (used by `docker-compose.yml` and migration scripts):
 
@@ -50,7 +51,7 @@ docker compose up -d postgres   # database only
 docker compose up --build       # api + postgres
 ```
 
-The API image exposes port `8080` and expects `DATABASE_URL`, `JWT_SECRET` (and optionally `JWT_ISSUER`, `JWT_TTL`, `BOOTSTRAP_ADMIN_API_KEY`).
+The API image exposes port `8080` and expects `DATABASE_URL`, `JWT_SECRET` (and optionally `JWT_ISSUER`, `JWT_TTL`, `BOOTSTRAP_ADMIN_API_KEY`, `APPLE_CLIENT_IDS`).
 
 ## Related
 

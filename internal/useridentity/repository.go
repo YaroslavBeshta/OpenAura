@@ -134,3 +134,39 @@ func (r *Repository) GetPasswordByEmail(ctx context.Context, appID uuid.UUID, em
 	}
 	return cred, nil
 }
+
+// GetByProviderSubject returns an active identity for (app, provider, subject).
+func (r *Repository) GetByProviderSubject(ctx context.Context, appID uuid.UUID, provider, subject string) (Identity, error) {
+	subject = strings.TrimSpace(subject)
+	if provider == ProviderPassword {
+		subject = strings.ToLower(subject)
+	}
+	if appID == uuid.Nil || provider == "" || subject == "" {
+		return Identity{}, fmt.Errorf("%w: app_id, provider, and provider_subject are required", store.ErrInvalidInput)
+	}
+
+	const sql = `
+		SELECT id, app_id, user_id, provider, provider_subject, secret_hash, metadata, created_at, updated_at, deleted_at
+		FROM user_identities
+		WHERE app_id = $1
+		  AND provider = $2
+		  AND provider_subject = $3
+		  AND deleted_at IS NULL`
+
+	var ident Identity
+	var hash *string
+	err := r.pool.QueryRow(ctx, sql, appID, provider, subject).Scan(
+		&ident.ID, &ident.AppID, &ident.UserID, &ident.Provider, &ident.ProviderSubject,
+		&hash, &ident.Metadata, &ident.CreatedAt, &ident.UpdatedAt, &ident.DeletedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Identity{}, store.ErrNotFound
+	}
+	if err != nil {
+		return Identity{}, fmt.Errorf("get identity: %w", err)
+	}
+	if hash != nil {
+		ident.SecretHash = *hash
+	}
+	return ident, nil
+}

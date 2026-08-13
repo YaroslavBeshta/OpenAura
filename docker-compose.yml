@@ -23,6 +23,7 @@ services:
       JWT_ISSUER: ${JWT_ISSUER:-openaura}
       JWT_TTL: ${JWT_TTL:-24h}
       BOOTSTRAP_ADMIN_API_KEY: ${BOOTSTRAP_ADMIN_API_KEY:-}
+      APPLE_CLIENT_IDS: ${APPLE_CLIENT_IDS:-}
     ports:
       - "8080:8080"
     depends_on:

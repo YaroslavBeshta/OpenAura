@@ -94,6 +94,31 @@ func (r *Repository) GetByID(ctx context.Context, appID, id uuid.UUID) (User, er
 	return u, nil
 }
 
+// GetByEmail returns the active user for an email in an app.
+func (r *Repository) GetByEmail(ctx context.Context, appID uuid.UUID, email string) (User, error) {
+	normalized, err := normalizeEmail(email)
+	if err != nil {
+		return User{}, err
+	}
+
+	const q = `
+		SELECT id, app_id, email, metadata, created_at, updated_at, deleted_at
+		FROM users
+		WHERE app_id = $1 AND email = $2 AND deleted_at IS NULL`
+
+	var u User
+	err = r.pool.QueryRow(ctx, q, appID, normalized).Scan(
+		&u.ID, &u.AppID, &u.Email, &u.Metadata, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return User{}, store.ErrNotFound
+	}
+	if err != nil {
+		return User{}, fmt.Errorf("get user by email: %w", err)
+	}
+	return u, nil
+}
+
 func (r *Repository) List(ctx context.Context, f ListFilter) ([]User, error) {
 	limit, offset := clampPagination(f.Limit, f.Offset)
 	const q = `

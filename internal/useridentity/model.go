@@ -8,7 +8,10 @@ import (
 	"github.com/openaura/openaura/internal/user"
 )
 
-const ProviderPassword = "password"
+const (
+	ProviderPassword = "password"
+	ProviderApple    = "apple"
+)
 
 type Identity struct {
 	ID              uuid.UUID       `json:"id"`

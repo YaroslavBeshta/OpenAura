@@ -170,6 +170,77 @@ func TestAuth_RequiresAppKeyAndValidPassword(t *testing.T) {
 	}
 }
 
+func TestAuth_AppleSignInAndLink(t *testing.T) {
+	api := apitest.New(t)
+	email := testutil.Email("apple")
+	token := "apple-identity-" + email
+	api.Apple.Allow(token, userauth.AppleClaims{Subject: "apple-sub-1", Email: email})
+
+	var created userauth.TokenResponse
+	status := api.JSON(http.MethodPost, "/auth/apple", map[string]any{
+		"identity_token": token,
+		"metadata":       map[string]any{"name": "Ada"},
+	}, &created)
+	if status != http.StatusCreated {
+		t.Fatalf("apple register status=%d", status)
+	}
+	if created.User.Email != email || created.AccessToken == "" {
+		t.Fatalf("apple register payload: %+v", created)
+	}
+
+	var again userauth.TokenResponse
+	status = api.JSON(http.MethodPost, "/auth/apple", map[string]any{
+		"identity_token": token,
+	}, &again)
+	if status != http.StatusOK {
+		t.Fatalf("apple login status=%d", status)
+	}
+	if again.User.ID != created.User.ID {
+		t.Fatalf("apple login user mismatch")
+	}
+
+	password := "correct-horse-battery"
+	linkEmail := testutil.Email("link")
+	var registered userauth.TokenResponse
+	if status := api.JSON(http.MethodPost, "/auth/register", map[string]any{
+		"email": linkEmail, "password": password,
+	}, &registered); status != http.StatusCreated {
+		t.Fatalf("password register status=%d", status)
+	}
+	linkToken := "apple-link-" + linkEmail
+	api.Apple.Allow(linkToken, userauth.AppleClaims{Subject: "apple-sub-link", Email: linkEmail})
+	var linked userauth.TokenResponse
+	status = api.JSON(http.MethodPost, "/auth/apple", map[string]any{
+		"identity_token": linkToken,
+	}, &linked)
+	if status != http.StatusOK {
+		t.Fatalf("apple link status=%d", status)
+	}
+	if linked.User.ID != registered.User.ID {
+		t.Fatalf("expected apple to link existing password user")
+	}
+}
+
+func TestAuth_AppleRejectsUnknownToken(t *testing.T) {
+	api := apitest.New(t)
+	var errBody map[string]string
+	status := api.JSON(http.MethodPost, "/auth/apple", map[string]any{
+		"identity_token": "nope",
+	}, &errBody)
+	if status != http.StatusUnauthorized {
+		t.Fatalf("status=%d want 401", status)
+	}
+}
+
+func TestAuth_AppleRequiresToken(t *testing.T) {
+	api := apitest.New(t)
+	var errBody map[string]string
+	status := api.JSON(http.MethodPost, "/auth/apple", map[string]any{}, &errBody)
+	if status != http.StatusBadRequest {
+		t.Fatalf("status=%d want 400", status)
+	}
+}
+
 func mustJSON(t *testing.T, v any) []byte {
 	t.Helper()
 	raw, err := json.Marshal(v)

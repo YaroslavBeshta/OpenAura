@@ -57,3 +57,18 @@ func TestLoad_DefaultsAndTTL(t *testing.T) {
 		t.Fatal("expected JWT_TTL positive error")
 	}
 }
+
+func TestLoad_AppleClientIDs(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost/db")
+	t.Setenv("JWT_SECRET", "super-secret")
+	t.Setenv("JWT_TTL", "24h")
+	t.Setenv("APPLE_CLIENT_IDS", "app.brocal.ios, com.brocal.service")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(cfg.AppleClientIDs) != 2 || cfg.AppleClientIDs[0] != "app.brocal.ios" || cfg.AppleClientIDs[1] != "com.brocal.service" {
+		t.Fatalf("apple ids=%v", cfg.AppleClientIDs)
+	}
+}

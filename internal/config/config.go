@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -13,6 +14,7 @@ type Config struct {
 	JWTSecret            string
 	JWTIssuer            string
 	JWTTTL               time.Duration
+	AppleClientIDs       []string
 }
 
 func Load() (Config, error) {
@@ -39,8 +41,24 @@ func Load() (Config, error) {
 		return Config{}, fmt.Errorf("JWT_TTL must be positive")
 	}
 	cfg.JWTTTL = ttl
+	cfg.AppleClientIDs = splitCSV(os.Getenv("APPLE_CLIENT_IDS"))
 
 	return cfg, nil
+}
+
+func splitCSV(raw string) []string {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func envOr(key, fallback string) string {
