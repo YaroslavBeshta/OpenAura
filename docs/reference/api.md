@@ -66,6 +66,7 @@ All require an app API key and are scoped to that app.
 |---|---|---|
 | `POST` | `/auth/register` | `{ "email", "password", "metadata"? }` → JWT + user (`201`) |
 | `POST` | `/auth/login` | `{ "email", "password" }` → JWT + user (`200`) |
+| `POST` | `/auth/apple` | `{ "identity_token", "email"?, "metadata"? }` → JWT + user (`200` existing, `201` created). `501` if `APPLE_CLIENT_IDS` is unset. |
 
 Password min length is 8. Tokens are HS256 JWTs (`sub`, `app_id`, `email`, `iss`, `iat`, `exp`). See [How to authenticate](../how-to/authenticate.md).
 

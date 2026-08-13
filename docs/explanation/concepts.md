@@ -14,7 +14,7 @@ Admin operators create apps; application servers only ever talk to one app via a
 
 A **user** is an authorization subject inside an app, identified primarily by email (unique per app).
 
-Login methods live separately as **identities** (`user_identities`): password today, with room for Google SSO and other providers later. The same user can have multiple identities.
+Login methods live separately as **identities** (`user_identities`): `password` and `apple` today, with room for other providers later. The same user can have multiple identities.
 
 You can:
 
