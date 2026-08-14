@@ -593,6 +593,14 @@ func TestAppAPIKeysAPI_CRUDAndIsolation(t *testing.T) {
 		t.Fatalf("revoked app key status=%d", resp.StatusCode)
 	}
 	resp.Body.Close()
+
+	missingID := uuid.Must(uuid.NewV7()).String()
+	if status := api.JSON(http.MethodGet, "/api_keys/"+missingID, nil, nil); status != http.StatusNotFound {
+		t.Fatalf("get missing api key status=%d", status)
+	}
+	if status := api.JSON(http.MethodDelete, "/api_keys/"+missingID, nil, nil); status != http.StatusNotFound {
+		t.Fatalf("revoke missing api key status=%d", status)
+	}
 }
 
 func TestUsersAPI_EmailUniquePerApp(t *testing.T) {
@@ -771,6 +779,18 @@ func TestResourcesAndActionsAPI_CRUD(t *testing.T) {
 	`, act.ID, api.AppID).Scan(&actionName)
 	if err != nil || actionName != "read" {
 		t.Fatalf("action not persisted: %v name=%q", err, actionName)
+	}
+
+	var updatedAction action.Action
+	status = api.JSON(http.MethodPatch, "/actions/"+act.ID.String(), map[string]any{
+		"name": "read-only",
+	}, &updatedAction)
+	if status != http.StatusOK || updatedAction.Name != "read-only" {
+		t.Fatalf("update action status=%d %+v", status, updatedAction)
+	}
+	err = api.Pool.QueryRow(ctx, `SELECT name FROM actions WHERE id = $1`, act.ID).Scan(&actionName)
+	if err != nil || actionName != "read-only" {
+		t.Fatalf("action update not persisted: %v name=%q", err, actionName)
 	}
 
 	write := createAction(t, api, "write")

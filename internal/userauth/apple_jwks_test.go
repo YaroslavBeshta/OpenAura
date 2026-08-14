@@ -89,6 +89,19 @@ func TestJWKSAppleVerifier_Verify(t *testing.T) {
 	}
 }
 
+func TestNewJWKSAppleVerifier(t *testing.T) {
+	v := NewJWKSAppleVerifier([]string{"app.brocal.ios"})
+	if len(v.ClientIDs) != 1 || v.ClientIDs[0] != "app.brocal.ios" {
+		t.Fatalf("client ids = %v", v.ClientIDs)
+	}
+	if v.JWKSURL != appleJWKSURL {
+		t.Fatalf("jwks url = %q, want %q", v.JWKSURL, appleJWKSURL)
+	}
+	if v.HTTP == nil || v.HTTP.Timeout != 10*time.Second {
+		t.Fatalf("http client = %+v", v.HTTP)
+	}
+}
+
 func TestJWKSAppleVerifier_NotConfigured(t *testing.T) {
 	v := &JWKSAppleVerifier{}
 	if _, err := v.Verify(context.Background(), "token"); !errors.Is(err, ErrAppleNotConfigured) {
