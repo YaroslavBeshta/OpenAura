@@ -221,6 +221,41 @@ func TestAuth_AppleSignInAndLink(t *testing.T) {
 	}
 }
 
+// TestAuth_AppleEmailFallbackLinksByBodyEmailOnly pins down a deliberate but
+// sensitive behavior: when the Apple identity token omits `email` (which
+// Apple does on every authorization after the first) and no `apple` identity
+// is linked yet, OpenAura trusts the request body's `email` field to find
+// (and link to) an existing user. That field is not verified by Apple, so
+// callers must only populate it from the native SDK's first-authorization
+// callback, never from user-editable input. See docs/how-to/authenticate.md.
+func TestAuth_AppleEmailFallbackLinksByBodyEmailOnly(t *testing.T) {
+	api := apitest.New(t)
+	password := "correct-horse-battery"
+	email := testutil.Email("fallback")
+
+	var registered userauth.TokenResponse
+	if status := api.JSON(http.MethodPost, "/auth/register", map[string]any{
+		"email": email, "password": password,
+	}, &registered); status != http.StatusCreated {
+		t.Fatalf("password register status=%d", status)
+	}
+
+	token := "apple-no-email-" + email
+	api.Apple.Allow(token, userauth.AppleClaims{Subject: "apple-sub-fallback"}) // no Email set
+
+	var linked userauth.TokenResponse
+	status := api.JSON(http.MethodPost, "/auth/apple", map[string]any{
+		"identity_token": token,
+		"email":          email,
+	}, &linked)
+	if status != http.StatusOK {
+		t.Fatalf("apple email-fallback status=%d", status)
+	}
+	if linked.User.ID != registered.User.ID {
+		t.Fatalf("expected body email to link the existing password user")
+	}
+}
+
 func TestAuth_AppleRejectsUnknownToken(t *testing.T) {
 	api := apitest.New(t)
 	var errBody map[string]string

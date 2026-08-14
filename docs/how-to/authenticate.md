@@ -100,6 +100,8 @@ Behavior:
 
 Apple may omit email after the first authorization. Send `email` from the native SDK on first sign-in. Without an email and without a prior `apple` identity, the API returns `400`.
 
+**Trust boundary:** the body's `email` is not verified by Apple — only the token's is. It's used to look up (and link to) an existing user in case #2 above, so treat it as trusted input: populate it strictly from the native SDK's first-authorization callback (`ASAuthorizationAppleIDCredential.email`), never from a user-editable field. A client that lets a user type an arbitrary `email` into this request could link/take over another account in that app that shares the email.
+
 If `APPLE_CLIENT_IDS` is empty, the route returns `501`.
 
 ## Examples (API keys)
