@@ -1,13 +1,11 @@
 package permission
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/openaura/openaura/internal/auth"
 	"github.com/openaura/openaura/internal/httpx"
-	"github.com/openaura/openaura/internal/store"
 )
 
 type Handler struct {
@@ -16,6 +14,12 @@ type Handler struct {
 
 func NewHandler(repo *Repository) *Handler {
 	return &Handler{repo: repo}
+}
+
+var repoErrorMessages = httpx.RepoErrorMessages{
+	NotFound:    "permission not found",
+	Conflict:    "permission already exists",
+	FKViolation: "role_id, resource_id, or action_id does not exist",
 }
 
 // Create grants a permission to a role.
@@ -47,7 +51,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	p, err := h.repo.Create(r.Context(), appID, roleID, body)
 	if err != nil {
-		writeRepoError(w, err)
+		httpx.WriteRepoError(w, err, repoErrorMessages)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusCreated, p)
@@ -81,7 +85,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	p, err := h.repo.GetByID(r.Context(), appID, roleID, permissionID)
 	if err != nil {
-		writeRepoError(w, err)
+		httpx.WriteRepoError(w, err, repoErrorMessages)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, p)
@@ -131,7 +135,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	items, err := h.repo.List(r.Context(), filter)
 	if err != nil {
-		writeRepoError(w, err)
+		httpx.WriteRepoError(w, err, repoErrorMessages)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, ListResponse{Permissions: items})
@@ -163,25 +167,8 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.repo.SoftDelete(r.Context(), appID, roleID, permissionID); err != nil {
-		writeRepoError(w, err)
+		httpx.WriteRepoError(w, err, repoErrorMessages)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func writeRepoError(w http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, store.ErrNotFound):
-		httpx.WriteError(w, http.StatusNotFound, "permission not found")
-	case errors.Is(err, store.ErrConflict):
-		httpx.WriteError(w, http.StatusConflict, "permission already exists")
-	case errors.Is(err, store.ErrFKViolation):
-		httpx.WriteError(w, http.StatusBadRequest, "role_id, resource_id, or action_id does not exist")
-	case errors.Is(err, store.ErrAppMismatch):
-		httpx.WriteError(w, http.StatusBadRequest, err.Error())
-	case errors.Is(err, store.ErrInvalidInput):
-		httpx.WriteError(w, http.StatusBadRequest, err.Error())
-	default:
-		httpx.WriteError(w, http.StatusInternalServerError, "internal server error")
-	}
 }

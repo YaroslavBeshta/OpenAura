@@ -73,7 +73,7 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (App, error) {
 }
 
 func (r *Repository) List(ctx context.Context, f ListFilter) ([]App, error) {
-	limit, offset := clampPagination(f.Limit, f.Offset)
+	limit, offset := httpx.ClampPagination(f.Limit, f.Offset)
 	const q = `
 		SELECT id, name, metadata, created_at, updated_at, deleted_at
 		FROM apps
@@ -154,14 +154,4 @@ func (r *Repository) SoftDelete(ctx context.Context, id uuid.UUID) error {
 		return store.ErrNotFound
 	}
 	return nil
-}
-
-func clampPagination(limit, offset int) (int, int) {
-	if limit <= 0 || limit > 100 {
-		limit = 50
-	}
-	if offset < 0 {
-		offset = 0
-	}
-	return limit, offset
 }

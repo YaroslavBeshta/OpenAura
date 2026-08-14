@@ -120,7 +120,7 @@ func (r *Repository) GetByEmail(ctx context.Context, appID uuid.UUID, email stri
 }
 
 func (r *Repository) List(ctx context.Context, f ListFilter) ([]User, error) {
-	limit, offset := clampPagination(f.Limit, f.Offset)
+	limit, offset := httpx.ClampPagination(f.Limit, f.Offset)
 	const q = `
 		SELECT id, app_id, email, metadata, created_at, updated_at, deleted_at
 		FROM users
@@ -212,16 +212,6 @@ func normalizeEmail(email string) (string, error) {
 		return "", ErrInvalidEmail
 	}
 	return email, nil
-}
-
-func clampPagination(limit, offset int) (int, int) {
-	if limit <= 0 || limit > 100 {
-		limit = 50
-	}
-	if offset < 0 {
-		offset = 0
-	}
-	return limit, offset
 }
 
 // NormalizeEmail exports email normalization for auth packages.

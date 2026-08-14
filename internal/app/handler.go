@@ -1,12 +1,10 @@
 package app
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/openaura/openaura/internal/httpx"
-	"github.com/openaura/openaura/internal/store"
 )
 
 type Handler struct {
@@ -15,6 +13,10 @@ type Handler struct {
 
 func NewHandler(repo *Repository) *Handler {
 	return &Handler{repo: repo}
+}
+
+var repoErrorMessages = httpx.RepoErrorMessages{
+	NotFound: "app not found",
 }
 
 // Create creates an app.
@@ -38,7 +40,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	a, err := h.repo.Create(r.Context(), body)
 	if err != nil {
-		writeRepoError(w, err)
+		httpx.WriteRepoError(w, err, repoErrorMessages)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusCreated, a)
@@ -62,7 +64,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	a, err := h.repo.GetByID(r.Context(), id)
 	if err != nil {
-		writeRepoError(w, err)
+		httpx.WriteRepoError(w, err, repoErrorMessages)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, a)
@@ -83,7 +85,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	limit, offset := httpx.Pagination(r)
 	apps, err := h.repo.List(r.Context(), ListFilter{Limit: limit, Offset: offset})
 	if err != nil {
-		writeRepoError(w, err)
+		httpx.WriteRepoError(w, err, repoErrorMessages)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, ListResponse{Apps: apps})
@@ -114,7 +116,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	a, err := h.repo.Update(r.Context(), id, body)
 	if err != nil {
-		writeRepoError(w, err)
+		httpx.WriteRepoError(w, err, repoErrorMessages)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, a)
@@ -136,19 +138,8 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.repo.SoftDelete(r.Context(), id); err != nil {
-		writeRepoError(w, err)
+		httpx.WriteRepoError(w, err, repoErrorMessages)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func writeRepoError(w http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, store.ErrNotFound):
-		httpx.WriteError(w, http.StatusNotFound, "app not found")
-	case errors.Is(err, store.ErrInvalidInput):
-		httpx.WriteError(w, http.StatusBadRequest, err.Error())
-	default:
-		httpx.WriteError(w, http.StatusInternalServerError, "internal server error")
-	}
 }

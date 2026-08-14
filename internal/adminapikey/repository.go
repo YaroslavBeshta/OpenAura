@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/openaura/openaura/internal/auth"
+	"github.com/openaura/openaura/internal/httpx"
 	"github.com/openaura/openaura/internal/store"
 )
 
@@ -91,7 +92,7 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (AdminAPIKey, er
 }
 
 func (r *Repository) List(ctx context.Context, f ListFilter) ([]AdminAPIKey, error) {
-	limit, offset := clampPagination(f.Limit, f.Offset)
+	limit, offset := httpx.ClampPagination(f.Limit, f.Offset)
 	const q = `
 		SELECT id, name, created_at, revoked_at
 		FROM admin_api_keys
@@ -140,14 +141,4 @@ func (r *Repository) AdminKeyExists(ctx context.Context, keyHash string) (bool, 
 		return false, fmt.Errorf("resolve admin key: %w", err)
 	}
 	return true, nil
-}
-
-func clampPagination(limit, offset int) (int, int) {
-	if limit <= 0 || limit > 100 {
-		limit = 50
-	}
-	if offset < 0 {
-		offset = 0
-	}
-	return limit, offset
 }
