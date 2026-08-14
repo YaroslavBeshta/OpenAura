@@ -76,7 +76,7 @@ func (r *Repository) GetByID(ctx context.Context, appID, id uuid.UUID) (Action, 
 }
 
 func (r *Repository) List(ctx context.Context, f ListFilter) ([]Action, error) {
-	limit, offset := clampPagination(f.Limit, f.Offset)
+	limit, offset := httpx.ClampPagination(f.Limit, f.Offset)
 	const q = `
 		SELECT id, app_id, name, metadata, created_at, updated_at, deleted_at
 		FROM actions
@@ -166,14 +166,4 @@ func normalizeName(name string) (string, error) {
 		return "", fmt.Errorf("%w: name is required", store.ErrInvalidInput)
 	}
 	return name, nil
-}
-
-func clampPagination(limit, offset int) (int, int) {
-	if limit <= 0 || limit > 100 {
-		limit = 50
-	}
-	if offset < 0 {
-		offset = 0
-	}
-	return limit, offset
 }

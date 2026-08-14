@@ -177,25 +177,6 @@ func TestRepository_InvalidInput(t *testing.T) {
 	}
 }
 
-func TestClampPagination(t *testing.T) {
-	tests := []struct {
-		limit, offset      int
-		wantLimit, wantOff int
-	}{
-		{0, 0, 50, 0},
-		{-1, -5, 50, 0},
-		{10, 3, 10, 3},
-		{101, 0, 50, 0},
-	}
-	for _, tt := range tests {
-		gotLimit, gotOff := clampPagination(tt.limit, tt.offset)
-		if gotLimit != tt.wantLimit || gotOff != tt.wantOff {
-			t.Fatalf("clampPagination(%d,%d)=(%d,%d), want (%d,%d)",
-				tt.limit, tt.offset, gotLimit, gotOff, tt.wantLimit, tt.wantOff)
-		}
-	}
-}
-
 func uniqueEmail(i int) string {
 	return fmt.Sprintf("user-%d-%s@example.com", i, uuid.NewString()[:8])
 }

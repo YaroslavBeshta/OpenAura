@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/openaura/openaura/internal/httpx"
 	"github.com/openaura/openaura/internal/store"
 )
 
@@ -70,7 +71,7 @@ func (r *Repository) GetByID(ctx context.Context, appID, id uuid.UUID) (RoleAssi
 }
 
 func (r *Repository) List(ctx context.Context, f ListFilter) ([]RoleAssignment, error) {
-	limit, offset := clampPagination(f.Limit, f.Offset)
+	limit, offset := httpx.ClampPagination(f.Limit, f.Offset)
 
 	const q = `
 		SELECT ra.id, ra.user_id, ra.role_id, ra.tenant_id, ra.created_at, ra.updated_at, ra.deleted_at
@@ -185,14 +186,4 @@ func (r *Repository) requireEntitiesInApp(ctx context.Context, appID, userID, ro
 		return store.ErrFKViolation
 	}
 	return nil
-}
-
-func clampPagination(limit, offset int) (int, int) {
-	if limit <= 0 || limit > 100 {
-		limit = 50
-	}
-	if offset < 0 {
-		offset = 0
-	}
-	return limit, offset
 }
