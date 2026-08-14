@@ -9,10 +9,10 @@ import (
 )
 
 var (
-	ErrInvalidAppleToken   = errors.New("invalid apple identity token")
-	ErrAppleNotConfigured  = errors.New("apple sign-in is not configured")
-	ErrAppleEmailRequired  = errors.New("email is required for first apple sign-in")
-	ErrAppleAudience       = errors.New("apple identity token audience is not allowed")
+	ErrInvalidAppleToken  = errors.New("invalid apple identity token")
+	ErrAppleNotConfigured = errors.New("apple sign-in is not configured")
+	ErrAppleEmailRequired = errors.New("email is required for first apple sign-in")
+	ErrAppleAudience      = errors.New("apple identity token audience is not allowed")
 )
 
 // AppleClaims are the fields OpenAura needs from a verified Apple identity token.
